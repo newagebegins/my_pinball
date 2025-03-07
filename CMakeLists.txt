@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.31)
 
 project(my_pinball)
 
+find_package(OpenGL REQUIRED)
+
 include(FetchContent)
 FetchContent_Declare(
   glfw
@@ -15,5 +17,4 @@ FetchContent_MakeAvailable(glfw)
 add_executable(my_pinball main.cpp)
 target_compile_features(my_pinball PRIVATE cxx_std_20)
 target_compile_options(my_pinball PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>)
-target_link_libraries(my_pinball PRIVATE glfw)
-
+target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw)
