@@ -7,10 +7,7 @@ find_package(OpenGL REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
   glfw
-  GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG        3.4
-  GIT_SHALLOW    ON
-  GIT_PROGRESS   ON
+  URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
 )
 FetchContent_MakeAvailable(glfw)
 
