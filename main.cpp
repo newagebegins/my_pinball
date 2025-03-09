@@ -6,7 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <cassert>
-#include <cstdlib> // for EXIT_SUCCESS and EXIT_FAILURE
+#include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>
 
 static void errorCallback(int /*error*/, const char* description)
@@ -61,6 +61,51 @@ void APIENTRY glDebugOutput(
     default:                             std::cerr << "Severity: ???"; break;
     }
     std::cerr << "\n\n";
+}
+
+GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
+{
+    GLint success{};
+    GLchar infoLog[512];
+
+    const GLuint vs{ glCreateShader(GL_VERTEX_SHADER) };
+    glShaderSource(vs, 1, &vertexCode, nullptr);
+    glCompileShader(vs);
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+
+    const GLuint fs{ glCreateShader(GL_FRAGMENT_SHADER) };
+    glShaderSource(fs, 1, &fragmentCode, nullptr);
+    glCompileShader(fs);
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+
+    const GLuint program{ glCreateProgram() };
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Program link error:\n" << infoLog << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+
+    glDeleteShader(fs);
+    glDeleteShader(vs);
+
+    return program;
 }
 
 int main()
@@ -122,45 +167,7 @@ void main()
 }
 )" };
 
-    GLint success{};
-    GLchar infoLog[512];
-
-    const GLuint vs{ glCreateShader(GL_VERTEX_SHADER) };
-    glShaderSource(vs, 1, &vertexCode, nullptr);
-    glCompileShader(vs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
-        return EXIT_FAILURE;
-    }
-
-    const GLuint fs{ glCreateShader(GL_FRAGMENT_SHADER) };
-    glShaderSource(fs, 1, &fragmentCode, nullptr);
-    glCompileShader(fs);
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
-        return EXIT_FAILURE;
-    }
-
-    const GLuint program{ glCreateProgram() };
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Program link error:\n" << infoLog << '\n';
-        return EXIT_FAILURE;
-    }
-
-    glDeleteShader(fs);
-    glDeleteShader(vs);
+    const GLuint program{ createShaderProgram(vertexCode, fragmentCode) };
 
     const GLint modelLoc{ glGetUniformLocation(program, "model") };
     const GLint projectionLoc{ glGetUniformLocation(program, "projection") };
