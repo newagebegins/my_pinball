@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>
+#include <vector>
 
 static void errorCallback(int /*error*/, const char* description)
 {
@@ -108,6 +109,37 @@ GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
     return program;
 }
 
+struct CircleG
+{
+    int numVerts;
+    GLuint vao;
+};
+
+CircleG createCircleG(int numVerts)
+{
+    std::vector<glm::vec3> verts(numVerts);
+
+    for (int i{ 0 }; i < numVerts; ++i)
+    {
+        const float t{ static_cast<float>(i) / numVerts };
+        const float angle{ t * 2.0f * glm::pi<float>() };
+        verts[i].x = std::cos(angle);
+        verts[i].y = std::sin(angle);
+    }
+
+    GLuint vao{};
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    GLuint vbo{};
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(verts[0]), 0);
+    glEnableVertexAttribArray(0);
+
+    return { numVerts, vao };
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -181,26 +213,7 @@ void main()
     glUseProgram(program);
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
-    constexpr int numCircleVerts{ 32 };
-    glm::vec3 circleVerts[numCircleVerts]{};
-
-    for (int i{ 0 }; i < numCircleVerts; ++i)
-    {
-        const float t{ static_cast<float>(i) / numCircleVerts };
-        const float angle{ t * 2.0f * glm::pi<float>() };
-        circleVerts[i].x = std::cos(angle);
-        circleVerts[i].y = std::sin(angle);
-    }
-
-    GLuint circleVao{};
-    glGenVertexArrays(1, &circleVao);
-    glBindVertexArray(circleVao);
-    GLuint circleVbo{};
-    glGenBuffers(1, &circleVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, circleVbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(circleVerts), circleVerts, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(circleVerts[0]), 0);
-    glEnableVertexAttribArray(0);
+    const CircleG circleG{ createCircleG(32) };
 
     constexpr float circleX{ 5.0f };
     constexpr float circleY{ 10.0f };
@@ -219,9 +232,9 @@ void main()
         glm::mat4 model{ glm::mat4(1.0f) };
         model = glm::translate(model, glm::vec3{ circleX, circleY, 0.0f });
         model = glm::scale(model, glm::vec3(circleRadius));
-        glBindVertexArray(circleVao);
+        glBindVertexArray(circleG.vao);
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &model[0][0]);
-        glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
+        glDrawArrays(GL_LINE_LOOP, 0, circleG.numVerts);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
