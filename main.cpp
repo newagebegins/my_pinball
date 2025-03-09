@@ -1,3 +1,4 @@
+#include <cstdlib> // for EXIT_SUCCESS and EXIT_FAILURE
 #include <iostream>
 
 #include <glad/glad.h>
@@ -64,7 +65,7 @@ int main()
     if (!glfwInit())
     {
         std::cerr << "Failed to initialize GLFW\n";
-        return 1;
+        return EXIT_FAILURE;
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -76,14 +77,14 @@ int main()
     if (!window)
     {
         std::cerr << "Failed to create GLFW window\n";
-        return 1;
+        return EXIT_FAILURE;
     }
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
     {
         std::cerr << "Failed to initialize GLAD\n";
-        return 1;
+        return EXIT_FAILURE;
     }
 
     glEnable(GL_DEBUG_OUTPUT);
@@ -105,6 +106,6 @@ int main()
         glfwPollEvents();
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
