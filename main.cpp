@@ -1,13 +1,13 @@
-#include <cassert>
-#include <cstdlib> // for EXIT_SUCCESS and EXIT_FAILURE
-#include <iostream>
-
 #include <glm/glm.hpp>                   // for glm types
 #include <glm/gtc/matrix_transform.hpp>  // for glm::translate, glm::scale
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#include <cassert>
+#include <cstdlib> // for EXIT_SUCCESS and EXIT_FAILURE
+#include <iostream>
 
 static void errorCallback(int /*error*/, const char* description)
 {
