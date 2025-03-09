@@ -9,10 +9,14 @@ FetchContent_Declare(
   glfw
   URL https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.zip
 )
-FetchContent_MakeAvailable(glfw)
+FetchContent_Declare(
+  glm
+  URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip
+)
+FetchContent_MakeAvailable(glfw glm)
 
 add_subdirectory(deps/glad)
 
 add_executable(my_pinball main.cpp)
 target_compile_options(my_pinball PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>)
-target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad)
+target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad glm::glm)
