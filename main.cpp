@@ -1,5 +1,10 @@
+#include <cassert>
 #include <cstdlib> // for EXIT_SUCCESS and EXIT_FAILURE
 #include <iostream>
+
+#include <glm/glm.hpp>                   // for glm types
+#include <glm/gtc/matrix_transform.hpp>  // for glm::translate, glm::scale
+#include <glm/ext/matrix_clip_space.hpp> // for glm::ortho
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -73,7 +78,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
-    GLFWwindow* window{ glfwCreateWindow(600, 800, "my_pinball", nullptr, nullptr) };
+    GLFWwindow* window{ glfwCreateWindow(800, 800, "my_pinball", nullptr, nullptr) };
     if (!window)
     {
         std::cerr << "Failed to create GLFW window\n";
@@ -92,6 +97,108 @@ int main()
     glDebugMessageCallback(glDebugOutput, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
+    const GLchar* vertexCode{ R"(
+#version 460
+
+layout (location = 0) in vec3 aPos;
+
+uniform mat4 model;
+uniform mat4 projection;
+
+void main()
+{
+	gl_Position = projection * model * vec4(aPos, 1.0);
+}
+)" };
+
+    const GLchar* fragmentCode{ R"(
+#version 460
+
+out vec4 fragColor;
+
+void main()
+{
+	fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+)" };
+
+    GLint success{};
+    GLchar infoLog[512];
+
+    const GLuint vs{ glCreateShader(GL_VERTEX_SHADER) };
+    glShaderSource(vs, 1, &vertexCode, nullptr);
+    glCompileShader(vs);
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
+        return EXIT_FAILURE;
+    }
+
+    const GLuint fs{ glCreateShader(GL_FRAGMENT_SHADER) };
+    glShaderSource(fs, 1, &fragmentCode, nullptr);
+    glCompileShader(fs);
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
+        return EXIT_FAILURE;
+    }
+
+    const GLuint program{ glCreateProgram() };
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Program link error:\n" << infoLog << '\n';
+        return EXIT_FAILURE;
+    }
+
+    glDeleteShader(fs);
+    glDeleteShader(vs);
+
+    const GLint modelLoc{ glGetUniformLocation(program, "model") };
+    const GLint projectionLoc{ glGetUniformLocation(program, "projection") };
+
+    assert(modelLoc >= 0);
+    assert(projectionLoc >= 0);
+
+    constexpr float zoom{ 32.0f };
+    const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
+
+    glUseProgram(program);
+    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection[0][0]);
+
+    constexpr int numCircleVerts{ 32 };
+    glm::vec3 circleVerts[numCircleVerts]{};
+
+    for (int i{ 0 }; i < numCircleVerts; ++i)
+    {
+        const float t{ static_cast<float>(i) / numCircleVerts };
+        const float angle{ t * 2.0f * glm::pi<float>() };
+        circleVerts[i].x = std::cos(angle);
+        circleVerts[i].y = std::sin(angle);
+    }
+
+    GLuint circleVao{};
+    glGenVertexArrays(1, &circleVao);
+    glBindVertexArray(circleVao);
+    GLuint circleVbo{};
+    glGenBuffers(1, &circleVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, circleVbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(circleVerts), circleVerts, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(circleVerts[0]), 0);
+    glEnableVertexAttribArray(0);
+
+    constexpr float circleX{ 5.0f };
+    constexpr float circleY{ 10.0f };
+    constexpr float circleRadius{ 5.0f };
+
     while (!glfwWindowShouldClose(window))
     {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -101,6 +208,13 @@ int main()
 
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glm::mat4 model{ glm::mat4(1.0f) };
+        model = glm::translate(model, glm::vec3{ circleX, circleY, 0.0f });
+        model = glm::scale(model, glm::vec3(circleRadius));
+        glBindVertexArray(circleVao);
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &model[0][0]);
+        glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
