@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <cassert>
+#include <cmath> // for std::sin(), std::cos(), std::acos()
 #include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>
 #include <vector>
@@ -201,6 +202,84 @@ void drawCircle(const Circle& c, const CircleG& g, const DefaultShader& s)
     glDrawArrays(GL_LINE_LOOP, 0, g.numVerts);
 }
 
+struct Flipper
+{
+    float orientation;
+    glm::vec3 position;
+    glm::vec3 scale;
+    glm::mat4 transform;
+};
+
+struct FlipperG
+{
+    static constexpr int numCircleSegments1{ 16 };
+    static constexpr int numCircleSegments2{ 8 };
+    static constexpr int numVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
+    
+    GLuint vao;
+};
+
+FlipperG createFlipperG()
+{
+    constexpr float r0{ 1.0f };
+    constexpr float r1{ 0.2f };
+    constexpr float width{ 8.0f };
+    constexpr float d{ width - r0 - r1 };
+    constexpr float cosA{ (r0 - r1) / d };
+    const float a{ std::acos(cosA) };
+ 
+    glm::vec3 vertices[FlipperG::numVerts];
+ 
+    int nextVertex{ 0 };
+
+    for (int i{ 0 }; i <= FlipperG::numCircleSegments1; ++i)
+    {
+        const float t{ static_cast<float>(i) / FlipperG::numCircleSegments1 };
+        const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
+        const float x{ r0 * std::cos(angle) };
+        const float y{ r0 * std::sin(angle) };
+        vertices[nextVertex++] = glm::vec3(x, y, 0.0f);
+    }
+
+    for (int i{ 0 }; i <= FlipperG::numCircleSegments2; ++i)
+    {
+        const float t{ static_cast<float>(i) / FlipperG::numCircleSegments2 };
+        const float angle{ -a + t * 2.0f * a };
+        const float x{ d + r1 * std::cos(angle) };
+        const float y{ r1 * std::sin(angle) };
+        vertices[nextVertex++] = glm::vec3(x, y, 0.0f);
+    }
+
+    assert(nextVertex == FlipperG::numVerts);
+
+    GLuint vao{};
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    GLuint vbo{};
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
+    glEnableVertexAttribArray(0);
+
+    return { vao };
+}
+
+void drawFlipper(const Flipper& flipper, const FlipperG& g, const DefaultShader& s)
+{
+    glBindVertexArray(g.vao);
+    glUniformMatrix4fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+    glDrawArrays(GL_LINE_LOOP, 0, FlipperG::numVerts);
+}
+
+void updateFlipperTransform(Flipper& flipper)
+{
+    flipper.transform = glm::mat4(1.0f);
+    flipper.transform = glm::translate(flipper.transform, flipper.position);
+    flipper.transform = glm::rotate(flipper.transform, flipper.orientation, { 0.0f, 0.0f, 1.0f });
+    flipper.transform = glm::scale(flipper.transform, flipper.scale);
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -246,6 +325,19 @@ int main()
     const Circle circle{ {5.0f, 10.0f}, 5.0f };
     const CircleG circleG{ createCircleG(32) };
 
+    constexpr float flipperX{ 10.0f };
+    constexpr float flipperY{ -24.0f };
+    Flipper flippers[2]{};
+    flippers[0].position = glm::vec3(-flipperX, flipperY, 0.0f);
+    flippers[0].scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    flippers[1].position = glm::vec3(flipperX, flipperY, 0.0f);
+    flippers[1].scale = glm::vec3(-1.0f, 1.0f, 1.0f);
+
+    updateFlipperTransform(flippers[0]);
+    updateFlipperTransform(flippers[1]);
+
+    const auto flipperG{ createFlipperG() };
+
     while (!glfwWindowShouldClose(window))
     {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -257,6 +349,11 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         drawCircle(circle, circleG, defShader);
+        
+        for (const auto& flipper : flippers)
+        {
+            drawFlipper(flipper, flipperG, defShader);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
