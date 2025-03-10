@@ -187,7 +187,7 @@ CircleG createCircleG(int numVerts)
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
     glEnableVertexAttribArray(0);
 
     return { numVerts, vao };
