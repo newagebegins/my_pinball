@@ -222,8 +222,8 @@ struct FlipperG
 
 FlipperG createFlipperG()
 {
-    constexpr float r0{ 1.0f };
-    constexpr float r1{ 0.2f };
+    constexpr float r0{ 1.1f };
+    constexpr float r1{ 0.7f };
     constexpr float width{ 8.0f };
     constexpr float d{ width - r0 - r1 };
     constexpr float cosA{ (r0 - r1) / d };
@@ -323,11 +323,11 @@ int main()
     glUseProgram(defShader.program);
     glUniformMatrix4fv(defShader.projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
-    const Circle circle{ {5.0f, 10.0f}, 5.0f };
+    const Circle circle{ {0.0f, 0.0f}, 1.0f };
     const CircleG circleG{ createCircleG(32) };
 
     constexpr float flipperX{ 10.0f };
-    constexpr float flipperY{ -24.0f };
+    constexpr float flipperY{ -2.0f };
     Flipper flippers[2]{};
     flippers[0].position = { -flipperX, flipperY };
     flippers[0].scaleX = 1.0f;
@@ -362,4 +362,3 @@ int main()
 
     return EXIT_SUCCESS;
 }
-
