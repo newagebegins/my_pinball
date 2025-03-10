@@ -1,6 +1,8 @@
 #include <glm/glm.hpp>                   // for glm types
-#include <glm/gtc/matrix_transform.hpp>  // for glm::translate, glm::scale
-#include <glm/ext/matrix_clip_space.hpp> // for glm::ortho
+#include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_transform_2d.hpp> // for glm::translate(), glm::rotate(), glm::scale()
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -122,14 +124,14 @@ DefaultShader createDefaultShader()
     static const GLchar* vertexCode{ R"(
 #version 460
 
-layout (location = 0) in vec3 aPos;
+layout (location = 0) in vec2 pos;
 
-uniform mat4 model;
+uniform mat3 model;
 uniform mat4 projection;
 
 void main()
 {
-	gl_Position = projection * model * vec4(aPos, 1.0);
+	gl_Position = projection * vec4(model * vec3(pos, 1.0), 1.0);
 }
 )" };
 
@@ -169,14 +171,13 @@ struct CircleG
 
 CircleG createCircleG(int numVerts)
 {
-    std::vector<glm::vec3> verts(numVerts);
+    std::vector<glm::vec2> verts(numVerts);
 
     for (int i{ 0 }; i < numVerts; ++i)
     {
         const float t{ static_cast<float>(i) / numVerts };
         const float angle{ t * 2.0f * glm::pi<float>() };
-        verts[i].x = std::cos(angle);
-        verts[i].y = std::sin(angle);
+        verts[i] = { std::cos(angle), std::sin(angle) };
     }
 
     GLuint vao{};
@@ -186,7 +187,7 @@ CircleG createCircleG(int numVerts)
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(verts[0]), 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), 0);
     glEnableVertexAttribArray(0);
 
     return { numVerts, vao };
@@ -194,20 +195,20 @@ CircleG createCircleG(int numVerts)
 
 void drawCircle(const Circle& c, const CircleG& g, const DefaultShader& s)
 {
-    glm::mat4 model{ glm::mat4(1.0f) };
-    model = glm::translate(model, glm::vec3{ c.center, 0.0f });
-    model = glm::scale(model, glm::vec3(c.radius));
+    glm::mat3 model{ glm::mat3(1.0f) };
+    model = glm::translate(model, c.center);
+    model = glm::scale(model, glm::vec2(c.radius));
     glBindVertexArray(g.vao);
-    glUniformMatrix4fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
+    glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
     glDrawArrays(GL_LINE_LOOP, 0, g.numVerts);
 }
 
 struct Flipper
 {
+    glm::mat3 transform;
+    glm::vec2 position;
     float orientation;
-    glm::vec3 position;
-    glm::vec3 scale;
-    glm::mat4 transform;
+    float scaleX;
 };
 
 struct FlipperG
@@ -228,7 +229,7 @@ FlipperG createFlipperG()
     constexpr float cosA{ (r0 - r1) / d };
     const float a{ std::acos(cosA) };
  
-    glm::vec3 vertices[FlipperG::numVerts];
+    glm::vec2 vertices[FlipperG::numVerts];
  
     int nextVertex{ 0 };
 
@@ -238,7 +239,7 @@ FlipperG createFlipperG()
         const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
         const float x{ r0 * std::cos(angle) };
         const float y{ r0 * std::sin(angle) };
-        vertices[nextVertex++] = glm::vec3(x, y, 0.0f);
+        vertices[nextVertex++] = { x, y };
     }
 
     for (int i{ 0 }; i <= FlipperG::numCircleSegments2; ++i)
@@ -247,7 +248,7 @@ FlipperG createFlipperG()
         const float angle{ -a + t * 2.0f * a };
         const float x{ d + r1 * std::cos(angle) };
         const float y{ r1 * std::sin(angle) };
-        vertices[nextVertex++] = glm::vec3(x, y, 0.0f);
+        vertices[nextVertex++] = { x, y };
     }
 
     assert(nextVertex == FlipperG::numVerts);
@@ -259,7 +260,7 @@ FlipperG createFlipperG()
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
     glEnableVertexAttribArray(0);
 
     return { vao };
@@ -268,16 +269,16 @@ FlipperG createFlipperG()
 void drawFlipper(const Flipper& flipper, const FlipperG& g, const DefaultShader& s)
 {
     glBindVertexArray(g.vao);
-    glUniformMatrix4fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+    glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
     glDrawArrays(GL_LINE_LOOP, 0, FlipperG::numVerts);
 }
 
 void updateFlipperTransform(Flipper& flipper)
 {
-    flipper.transform = glm::mat4(1.0f);
+    flipper.transform = glm::mat3{ 1.0f };
     flipper.transform = glm::translate(flipper.transform, flipper.position);
-    flipper.transform = glm::rotate(flipper.transform, flipper.orientation, { 0.0f, 0.0f, 1.0f });
-    flipper.transform = glm::scale(flipper.transform, flipper.scale);
+    flipper.transform = glm::rotate(flipper.transform, flipper.orientation);
+    flipper.transform = glm::scale(flipper.transform, { flipper.scaleX, 1.0f });
 }
 
 int main()
@@ -328,10 +329,10 @@ int main()
     constexpr float flipperX{ 10.0f };
     constexpr float flipperY{ -24.0f };
     Flipper flippers[2]{};
-    flippers[0].position = glm::vec3(-flipperX, flipperY, 0.0f);
-    flippers[0].scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    flippers[1].position = glm::vec3(flipperX, flipperY, 0.0f);
-    flippers[1].scale = glm::vec3(-1.0f, 1.0f, 1.0f);
+    flippers[0].position = { -flipperX, flipperY };
+    flippers[0].scaleX = 1.0f;
+    flippers[1].position = { flipperX, flipperY };
+    flippers[1].scaleX = -1.0f;
 
     updateFlipperTransform(flippers[0]);
     updateFlipperTransform(flippers[1]);
