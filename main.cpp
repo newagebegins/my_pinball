@@ -109,6 +109,57 @@ GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
     return program;
 }
 
+struct DefaultShader
+{
+    GLuint program;
+    GLint modelLoc;
+    GLint projectionLoc;
+};
+
+DefaultShader createDefaultShader()
+{
+    static const GLchar* vertexCode{ R"(
+#version 460
+
+layout (location = 0) in vec3 aPos;
+
+uniform mat4 model;
+uniform mat4 projection;
+
+void main()
+{
+	gl_Position = projection * model * vec4(aPos, 1.0);
+}
+)" };
+
+    static const GLchar* fragmentCode{ R"(
+#version 460
+
+out vec4 fragColor;
+
+void main()
+{
+	fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+)" };
+
+    const GLuint program{ createShaderProgram(vertexCode, fragmentCode) };
+
+    const GLint modelLoc{ glGetUniformLocation(program, "model") };
+    const GLint projectionLoc{ glGetUniformLocation(program, "projection") };
+
+    assert(modelLoc >= 0);
+    assert(projectionLoc >= 0);
+
+    return { program, modelLoc, projectionLoc };
+}
+
+struct Circle
+{
+    glm::vec2 center;
+    float radius;
+};
+
 struct CircleG
 {
     int numVerts;
@@ -138,6 +189,16 @@ CircleG createCircleG(int numVerts)
     glEnableVertexAttribArray(0);
 
     return { numVerts, vao };
+}
+
+void drawCircle(const Circle& c, const CircleG& g, const DefaultShader& s)
+{
+    glm::mat4 model{ glm::mat4(1.0f) };
+    model = glm::translate(model, glm::vec3{ c.center, 0.0f });
+    model = glm::scale(model, glm::vec3(c.radius));
+    glBindVertexArray(g.vao);
+    glUniformMatrix4fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
+    glDrawArrays(GL_LINE_LOOP, 0, g.numVerts);
 }
 
 int main()
@@ -174,50 +235,16 @@ int main()
     glDebugMessageCallback(glDebugOutput, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
-    const GLchar* vertexCode{ R"(
-#version 460
-
-layout (location = 0) in vec3 aPos;
-
-uniform mat4 model;
-uniform mat4 projection;
-
-void main()
-{
-	gl_Position = projection * model * vec4(aPos, 1.0);
-}
-)" };
-
-    const GLchar* fragmentCode{ R"(
-#version 460
-
-out vec4 fragColor;
-
-void main()
-{
-	fragColor = vec4(1.0, 1.0, 1.0, 1.0);
-}
-)" };
-
-    const GLuint program{ createShaderProgram(vertexCode, fragmentCode) };
-
-    const GLint modelLoc{ glGetUniformLocation(program, "model") };
-    const GLint projectionLoc{ glGetUniformLocation(program, "projection") };
-
-    assert(modelLoc >= 0);
-    assert(projectionLoc >= 0);
+    const auto defShader{ createDefaultShader() };
 
     constexpr float zoom{ 32.0f };
     const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
 
-    glUseProgram(program);
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    glUseProgram(defShader.program);
+    glUniformMatrix4fv(defShader.projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
+    const Circle circle{ {5.0f, 10.0f}, 5.0f };
     const CircleG circleG{ createCircleG(32) };
-
-    constexpr float circleX{ 5.0f };
-    constexpr float circleY{ 10.0f };
-    constexpr float circleRadius{ 5.0f };
 
     while (!glfwWindowShouldClose(window))
     {
@@ -229,12 +256,7 @@ void main()
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glm::mat4 model{ glm::mat4(1.0f) };
-        model = glm::translate(model, glm::vec3{ circleX, circleY, 0.0f });
-        model = glm::scale(model, glm::vec3(circleRadius));
-        glBindVertexArray(circleG.vao);
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &model[0][0]);
-        glDrawArrays(GL_LINE_LOOP, 0, circleG.numVerts);
+        drawCircle(circle, circleG, defShader);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
