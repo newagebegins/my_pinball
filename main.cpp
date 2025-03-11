@@ -214,67 +214,65 @@ struct Flipper
     float scaleX;
 };
 
-struct FlipperG
+class FlipperRenderer
 {
+public:
+    FlipperRenderer()
+    {
+        constexpr float r0{ 1.1f };
+        constexpr float r1{ 0.7f };
+        constexpr float width{ 8.0f };
+        constexpr float d{ width - r0 - r1 };
+        constexpr float cosA{ (r0 - r1) / d };
+        const float a{ std::acos(cosA) };
+
+        glm::vec2 vertices[numVerts];
+
+        int nextVertex{ 0 };
+
+        for (int i{ 0 }; i <= numCircleSegments1; ++i)
+        {
+            const float t{ static_cast<float>(i) / numCircleSegments1 };
+            const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
+            const float x{ r0 * std::cos(angle) };
+            const float y{ r0 * std::sin(angle) };
+            vertices[nextVertex++] = { x, y };
+        }
+
+        for (int i{ 0 }; i <= numCircleSegments2; ++i)
+        {
+            const float t{ static_cast<float>(i) / numCircleSegments2 };
+            const float angle{ -a + t * 2.0f * a };
+            const float x{ d + r1 * std::cos(angle) };
+            const float y{ r1 * std::sin(angle) };
+            vertices[nextVertex++] = { x, y };
+        }
+
+        assert(nextVertex == numVerts);
+
+        glGenVertexArrays(1, &m_vao);
+        glBindVertexArray(m_vao);
+        GLuint vbo{};
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
+        glEnableVertexAttribArray(0);
+    }
+
+    void render(const Flipper& flipper, const DefaultShader& s)
+    {
+        glBindVertexArray(m_vao);
+        glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+        glDrawArrays(GL_LINE_LOOP, 0, numVerts);
+    }
+private:
     static constexpr int numCircleSegments1{ 16 };
     static constexpr int numCircleSegments2{ 8 };
     static constexpr int numVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
     
-    GLuint vao;
+    GLuint m_vao;
 };
-
-FlipperG createFlipperG()
-{
-    constexpr float r0{ 1.1f };
-    constexpr float r1{ 0.7f };
-    constexpr float width{ 8.0f };
-    constexpr float d{ width - r0 - r1 };
-    constexpr float cosA{ (r0 - r1) / d };
-    const float a{ std::acos(cosA) };
- 
-    glm::vec2 vertices[FlipperG::numVerts];
- 
-    int nextVertex{ 0 };
-
-    for (int i{ 0 }; i <= FlipperG::numCircleSegments1; ++i)
-    {
-        const float t{ static_cast<float>(i) / FlipperG::numCircleSegments1 };
-        const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
-        const float x{ r0 * std::cos(angle) };
-        const float y{ r0 * std::sin(angle) };
-        vertices[nextVertex++] = { x, y };
-    }
-
-    for (int i{ 0 }; i <= FlipperG::numCircleSegments2; ++i)
-    {
-        const float t{ static_cast<float>(i) / FlipperG::numCircleSegments2 };
-        const float angle{ -a + t * 2.0f * a };
-        const float x{ d + r1 * std::cos(angle) };
-        const float y{ r1 * std::sin(angle) };
-        vertices[nextVertex++] = { x, y };
-    }
-
-    assert(nextVertex == FlipperG::numVerts);
-
-    GLuint vao{};
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    GLuint vbo{};
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
-    glEnableVertexAttribArray(0);
-
-    return { vao };
-}
-
-void drawFlipper(const Flipper& flipper, const FlipperG& g, const DefaultShader& s)
-{
-    glBindVertexArray(g.vao);
-    glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
-    glDrawArrays(GL_LINE_LOOP, 0, FlipperG::numVerts);
-}
 
 void updateFlipperTransform(Flipper& flipper)
 {
@@ -293,9 +291,7 @@ struct Scene
 class Renderer
 {
 public:
-    Renderer()
-        : m_flipperG{ createFlipperG() }
-        , m_defShader{ createDefaultShader() }
+    Renderer() : m_defShader{ createDefaultShader() }
     {
         constexpr float zoom{ 32.0f };
         const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
@@ -313,14 +309,14 @@ public:
 
         for (const auto& flipper : scene.flippers)
         {
-            drawFlipper(flipper, m_flipperG, m_defShader);
+            m_flipperRenderer.render(flipper, m_defShader);
         }
     }
 
 private:
     DefaultShader m_defShader;
     CircleRenderer m_circleRenderer;
-    FlipperG m_flipperG;
+    FlipperRenderer m_flipperRenderer;
 };
 
 int main()
