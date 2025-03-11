@@ -167,45 +167,44 @@ struct Circle
     float radius;
 };
 
-struct CircleG
+class CircleRenderer
 {
-    int numVerts;
-    GLuint vao;
-};
-
-CircleG createCircleG(int numVerts)
-{
-    std::vector<glm::vec2> verts(numVerts);
-
-    for (int i{ 0 }; i < numVerts; ++i)
+public:
+    CircleRenderer()
     {
-        const float t{ static_cast<float>(i) / numVerts };
-        const float angle{ t * 2.0f * glm::pi<float>() };
-        verts[i] = { std::cos(angle), std::sin(angle) };
+        glm::vec2 verts[numVerts];
+
+        for (int i{ 0 }; i < numVerts; ++i)
+        {
+            const float t{ static_cast<float>(i) / numVerts };
+            const float angle{ t * 2.0f * glm::pi<float>() };
+            verts[i] = { std::cos(angle), std::sin(angle) };
+        }
+
+        glGenVertexArrays(1, &m_vao);
+        glBindVertexArray(m_vao);
+        GLuint vbo{};
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
+        glEnableVertexAttribArray(0);
     }
 
-    GLuint vao{};
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    GLuint vbo{};
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
-    glEnableVertexAttribArray(0);
+    void render(const Circle& c, const DefaultShader& s)
+    {
+        glm::mat3 model{ glm::mat3(1.0f) };
+        model = glm::translate(model, c.center);
+        model = glm::scale(model, glm::vec2(c.radius));
+        glBindVertexArray(m_vao);
+        glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
+        glDrawArrays(GL_LINE_LOOP, 0, numVerts);
+    }
 
-    return { numVerts, vao };
-}
-
-void drawCircle(const Circle& c, const CircleG& g, const DefaultShader& s)
-{
-    glm::mat3 model{ glm::mat3(1.0f) };
-    model = glm::translate(model, c.center);
-    model = glm::scale(model, glm::vec2(c.radius));
-    glBindVertexArray(g.vao);
-    glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
-    glDrawArrays(GL_LINE_LOOP, 0, g.numVerts);
-}
+private:
+    static constexpr int numVerts{ 32 };
+    GLuint m_vao;
+};
 
 struct Flipper
 {
@@ -295,8 +294,7 @@ class Renderer
 {
 public:
     Renderer()
-        : m_circleG{ createCircleG(32) }
-        , m_flipperG{ createFlipperG() }
+        : m_flipperG{ createFlipperG() }
         , m_defShader{ createDefaultShader() }
     {
         constexpr float zoom{ 32.0f };
@@ -311,7 +309,7 @@ public:
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        drawCircle(scene.circle, m_circleG, m_defShader);
+        m_circleRenderer.render(scene.circle, m_defShader);
 
         for (const auto& flipper : scene.flippers)
         {
@@ -321,7 +319,7 @@ public:
 
 private:
     DefaultShader m_defShader;
-    CircleG m_circleG;
+    CircleRenderer m_circleRenderer;
     FlipperG m_flipperG;
 };
 
