@@ -285,6 +285,46 @@ void updateFlipperTransform(Flipper& flipper)
     flipper.transform = glm::scale(flipper.transform, { flipper.scaleX, 1.0f });
 }
 
+struct Scene
+{
+    Circle circle;
+    Flipper flippers[2];
+};
+
+class Renderer
+{
+public:
+    Renderer()
+        : m_circleG{ createCircleG(32) }
+        , m_flipperG{ createFlipperG() }
+        , m_defShader{ createDefaultShader() }
+    {
+        constexpr float zoom{ 32.0f };
+        const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
+
+        glUseProgram(m_defShader.program);
+        glUniformMatrix4fv(m_defShader.projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    }
+
+    void render(const Scene& scene)
+    {
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        drawCircle(scene.circle, m_circleG, m_defShader);
+
+        for (const auto& flipper : scene.flippers)
+        {
+            drawFlipper(flipper, m_flipperG, m_defShader);
+        }
+    }
+
+private:
+    DefaultShader m_defShader;
+    CircleG m_circleG;
+    FlipperG m_flipperG;
+};
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -319,29 +359,21 @@ int main()
     glDebugMessageCallback(glDebugOutput, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
-    const auto defShader{ createDefaultShader() };
+    Scene scene{};
 
-    constexpr float zoom{ 32.0f };
-    const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
-
-    glUseProgram(defShader.program);
-    glUniformMatrix4fv(defShader.projectionLoc, 1, GL_FALSE, &projection[0][0]);
-
-    const Circle circle{ {0.0f, 0.0f}, 1.0f };
-    const CircleG circleG{ createCircleG(32) };
+    scene.circle = { {0.0f, 0.0f}, 1.0f };
 
     constexpr float flipperX{ 10.0f };
     constexpr float flipperY{ -2.0f };
-    Flipper flippers[2]{};
-    flippers[0].position = { -flipperX, flipperY };
-    flippers[0].scaleX = 1.0f;
-    flippers[1].position = { flipperX, flipperY };
-    flippers[1].scaleX = -1.0f;
+    scene.flippers[0].position = { -flipperX, flipperY };
+    scene.flippers[0].scaleX = 1.0f;
+    scene.flippers[1].position = { flipperX, flipperY };
+    scene.flippers[1].scaleX = -1.0f;
 
-    updateFlipperTransform(flippers[0]);
-    updateFlipperTransform(flippers[1]);
+    updateFlipperTransform(scene.flippers[0]);
+    updateFlipperTransform(scene.flippers[1]);
 
-    const auto flipperG{ createFlipperG() };
+    Renderer renderer;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -350,15 +382,7 @@ int main()
             glfwSetWindowShouldClose(window, true);
         }
 
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        drawCircle(circle, circleG, defShader);
-        
-        for (const auto& flipper : flippers)
-        {
-            drawFlipper(flipper, flipperG, defShader);
-        }
+        renderer.render(scene);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
