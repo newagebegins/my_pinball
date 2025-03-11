@@ -27,6 +27,10 @@ void APIENTRY glDebugOutput(
     const GLchar* message,
     const void* /*userParam*/)
 {
+    // Skip uninteresting messages
+    if (id == 131185) // Buffer object will use VIDEO memory as the source for buffer object operations
+        return;
+
     std::cerr << "OpenGL debug message (" << id << "): " << message << '\n';
 
     switch (source)
