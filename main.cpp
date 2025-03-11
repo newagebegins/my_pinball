@@ -116,16 +116,39 @@ GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
     return program;
 }
 
-struct DefaultShader
+class DefaultShader
 {
-    GLuint program;
-    GLint modelLoc;
-    GLint projectionLoc;
-};
+public:
+    DefaultShader()
+        : m_program{ createShaderProgram(vertexCode, fragmentCode) }
+        , m_modelLoc{ glGetUniformLocation(m_program, "model") }
+        , m_projectionLoc{ glGetUniformLocation(m_program, "projection") }
+    {
+        assert(m_modelLoc >= 0);
+        assert(m_projectionLoc >= 0);
+    }
 
-DefaultShader createDefaultShader()
-{
-    static const GLchar* vertexCode{ R"(
+    void use() const
+    {
+        glUseProgram(m_program);
+    }
+
+    void setModel(const glm::mat3& model) const
+    {
+        glUniformMatrix3fv(m_modelLoc, 1, GL_FALSE, &model[0][0]);
+    }
+
+    void setProjection(const glm::mat4& projection) const
+    {
+        glUniformMatrix4fv(m_projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    }
+
+private:
+    const GLuint m_program;
+    const GLint m_modelLoc;
+    const GLint m_projectionLoc;
+
+    static constexpr GLchar* vertexCode{ R"(
 #version 460
 
 layout (location = 0) in vec2 pos;
@@ -139,7 +162,7 @@ void main()
 }
 )" };
 
-    static const GLchar* fragmentCode{ R"(
+    static constexpr GLchar* fragmentCode{ R"(
 #version 460
 
 out vec4 fragColor;
@@ -149,17 +172,7 @@ void main()
 	fragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
 )" };
-
-    const GLuint program{ createShaderProgram(vertexCode, fragmentCode) };
-
-    const GLint modelLoc{ glGetUniformLocation(program, "model") };
-    const GLint projectionLoc{ glGetUniformLocation(program, "projection") };
-
-    assert(modelLoc >= 0);
-    assert(projectionLoc >= 0);
-
-    return { program, modelLoc, projectionLoc };
-}
+};
 
 struct Circle
 {
@@ -197,7 +210,7 @@ public:
         model = glm::translate(model, c.center);
         model = glm::scale(model, glm::vec2(c.radius));
         glBindVertexArray(m_vao);
-        glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &model[0][0]);
+        s.setModel(model);
         glDrawArrays(GL_LINE_LOOP, 0, numVerts);
     }
 
@@ -263,7 +276,7 @@ public:
     void render(const Flipper& flipper, const DefaultShader& s)
     {
         glBindVertexArray(m_vao);
-        glUniformMatrix3fv(s.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+        s.setModel(flipper.transform);
         glDrawArrays(GL_LINE_LOOP, 0, numVerts);
     }
 private:
@@ -291,13 +304,13 @@ struct Scene
 class Renderer
 {
 public:
-    Renderer() : m_defShader{ createDefaultShader() }
+    Renderer()
     {
         constexpr float zoom{ 32.0f };
         const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
 
-        glUseProgram(m_defShader.program);
-        glUniformMatrix4fv(m_defShader.projectionLoc, 1, GL_FALSE, &projection[0][0]);
+        m_defShader.use();
+        m_defShader.setProjection(projection);
     }
 
     void render(const Scene& scene)
