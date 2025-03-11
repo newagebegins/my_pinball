@@ -148,7 +148,7 @@ private:
     const GLint m_modelLoc;
     const GLint m_projectionLoc;
 
-    static constexpr GLchar* vertexCode{ R"(
+    inline static const GLchar* const vertexCode{ R"(
 #version 460
 
 layout (location = 0) in vec2 pos;
@@ -162,7 +162,7 @@ void main()
 }
 )" };
 
-    static constexpr GLchar* fragmentCode{ R"(
+    inline static const GLchar* const fragmentCode{ R"(
 #version 460
 
 out vec4 fragColor;
