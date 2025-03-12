@@ -6,6 +6,7 @@ void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
     verts.push_back(p1);
 }
 
+// Ball's radius is 1.0f, everything is measured relative to that
 Scene makeScene()
 {
     Scene scene{};
@@ -18,11 +19,16 @@ Scene makeScene()
     scene.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
     scene.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
 
-    constexpr float a{ glm::radians(180.0f) + Flipper::minAngle };
-    const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-    const glm::vec2 p1{ p0 + glm::vec2{std::cos(a), std::sin(a)} * 11.0f };
-    addLine(scene.lines, p0, p1);
+    // Slanted wall right near the flipper
+    {
+        constexpr float angle{ glm::radians(180.0f) + Flipper::minAngle };
+        constexpr float width{ 11.0f };
+        const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+        const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
+        addLine(scene.lines, p0, p1);
+    }
 
+    // Horizontal line that represents the bottom of the table
     addLine(scene.lines, { -30.0f, 0.0f }, { 30.0f, 0.0f });
 
     return scene;

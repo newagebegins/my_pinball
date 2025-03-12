@@ -251,7 +251,7 @@ public:
     Renderer(const Scene& scene)
         : m_lineRenderer(scene.lines)
     {
-        const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -20.0f }) };
+        const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -30.0f }) };
 
         constexpr float zoom{ 32.0f };
         const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
