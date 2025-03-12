@@ -43,7 +43,7 @@ public:
 
     void update(float dt)
     {
-        m_orientation += m_angularVelocity * m_scaleX * dt;
+        m_orientation += m_angularVelocity * dt;
         m_orientation = glm::clamp(m_orientation, minAngle, maxAngle);
         updateTransform();
     }
@@ -66,7 +66,7 @@ private:
     {
         m_transform = glm::mat3{ 1.0f };
         m_transform = glm::translate(m_transform, m_position);
-        m_transform = glm::rotate(m_transform, m_orientation);
+        m_transform = glm::rotate(m_transform, m_orientation * m_scaleX);
         m_transform = glm::scale(m_transform, { m_scaleX, 1.0f });
     }
 };
