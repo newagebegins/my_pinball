@@ -12,8 +12,10 @@ Scene makeScene()
     scene.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
     scene.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
 
-    glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-    scene.lines.emplace_back(Line{ p0, p0 + glm::vec2{ -10.0f, 10.0f } });
+    constexpr float a{ glm::radians(180.0f) + Flipper::minAngle };
+    const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+    const glm::vec2 p1{ p0 + glm::vec2{std::cos(a), std::sin(a)} * 11.0f };
+    scene.lines.emplace_back(Line{ p0, p1 });
 
     return scene;
 }

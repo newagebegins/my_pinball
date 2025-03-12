@@ -21,6 +21,9 @@ public:
     static constexpr float r0{ 1.1f };
     static constexpr float r1{ 0.7f };
 
+    static constexpr float minAngle{ glm::radians(-38.0f) };
+    static constexpr float maxAngle{ glm::radians(33.0f) };
+
     Flipper(glm::vec2 position, bool isLeft)
         : m_position{ position }
         , m_scaleX{ isLeft ? 1.0f : -1.0f }
@@ -51,8 +54,6 @@ public:
     }
 
 private:
-    static constexpr float minAngle{ glm::radians(-38.0f) };
-    static constexpr float maxAngle{ glm::radians(33.0f) };
     static constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
 
     glm::mat3 m_transform{ glm::mat3{ 1.0f } };
