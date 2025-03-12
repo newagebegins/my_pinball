@@ -3,6 +3,8 @@
 
 #include <glm/glm.hpp> // for glm types
 
+#include <cstdint> // for std::uint8_t
+
 struct Circle
 {
     glm::vec2 center;
@@ -24,5 +26,10 @@ struct Scene
 };
 
 Scene makeScene();
+
+#define BUTTON_L (1 << 0)
+#define BUTTON_R (1 << 1)
+
+void update(std::uint8_t input);
 
 #endif

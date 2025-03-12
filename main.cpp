@@ -112,6 +112,18 @@ int main()
             glfwSetWindowShouldClose(window, true);
         }
 
+        std::uint8_t input{};
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+        {
+            input |= BUTTON_L;
+        }
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+        {
+            input |= BUTTON_R;
+        }
+
+        update(input);
         render(scene);
 
         glfwSwapBuffers(window);

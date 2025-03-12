@@ -30,3 +30,15 @@ Scene makeScene()
 
     return scene;
 }
+
+void update(std::uint8_t input)
+{
+    if (input & BUTTON_L)
+    {
+        // do stuff
+    }
+    if (input & BUTTON_R)
+    {
+        // do stuff
+    }
+}
