@@ -4,10 +4,10 @@ Scene makeScene()
 {
     Scene scene{};
 
-    scene.circle = { {0.0f, 0.0f}, 1.0f };
+    scene.circle = { {0.0f, 10.0f}, 1.0f };
 
     constexpr float flipperX{ 10.0f };
-    constexpr float flipperY{ -2.0f };
+    constexpr float flipperY{ 7.0f };
 
     scene.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
     scene.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);

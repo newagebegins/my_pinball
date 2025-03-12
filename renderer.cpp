@@ -226,6 +226,35 @@ private:
     GLuint m_vao;
 };
 
+void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+{
+    verts.push_back(p0);
+    verts.push_back(p1);
+}
+
+class LineRenderer
+{
+public:
+    LineRenderer()
+    {
+        std::vector<glm::vec2> verts{};
+        addLine(verts, { -30.0f, 0.0f }, { 30.0f, 0.0f });
+        m_vao = DefaultShader::createVao(verts);
+        m_numVerts = static_cast<int>(verts.size());
+    }
+
+    void render(const DefaultShader& s)
+    {
+        s.setModel({ 1.0f });
+        glBindVertexArray(m_vao);
+        glDrawArrays(GL_LINES, 0, m_numVerts);
+    }
+
+private:
+    GLuint m_vao;
+    int m_numVerts;
+};
+
 class Renderer
 {
 public:
@@ -252,12 +281,15 @@ public:
         {
             m_flipperRenderer.render(flipper, m_defShader);
         }
+
+        m_lineRenderer.render(m_defShader);
     }
 
 private:
     DefaultShader m_defShader;
     CircleRenderer m_circleRenderer;
     FlipperRenderer m_flipperRenderer;
+    LineRenderer m_lineRenderer;
 };
 
 void render(const Scene& scene)
