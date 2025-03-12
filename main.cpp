@@ -143,6 +143,21 @@ public:
         glUniformMatrix4fv(m_projectionLoc, 1, GL_FALSE, &projection[0][0]);
     }
 
+    static GLuint createVao(const std::vector<glm::vec2>& verts)
+    {
+        GLuint vao;
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
+        glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
+        glEnableVertexAttribArray(0);
+        return vao;
+    }
+
 private:
     const GLuint m_program;
     const GLint m_modelLoc;
@@ -185,23 +200,16 @@ class CircleRenderer
 public:
     CircleRenderer()
     {
-        glm::vec2 verts[numVerts];
+        std::vector<glm::vec2> verts(numVerts);
 
-        for (int i{ 0 }; i < numVerts; ++i)
+        for (std::size_t i{ 0 }; i < numVerts; ++i)
         {
             const float t{ static_cast<float>(i) / numVerts };
             const float angle{ t * 2.0f * glm::pi<float>() };
             verts[i] = { std::cos(angle), std::sin(angle) };
         }
 
-        glGenVertexArrays(1, &m_vao);
-        glBindVertexArray(m_vao);
-        GLuint vbo{};
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
-        glEnableVertexAttribArray(0);
+        m_vao = DefaultShader::createVao(verts);
     }
 
     void render(const Circle& c, const DefaultShader& s)
@@ -239,9 +247,9 @@ public:
         constexpr float cosA{ (r0 - r1) / d };
         const float a{ std::acos(cosA) };
 
-        glm::vec2 vertices[numVerts];
+        std::vector<glm::vec2> vertices(numVerts);
 
-        int nextVertex{ 0 };
+        std::size_t nextVertex{ 0 };
 
         for (int i{ 0 }; i <= numCircleSegments1; ++i)
         {
@@ -263,14 +271,7 @@ public:
 
         assert(nextVertex == numVerts);
 
-        glGenVertexArrays(1, &m_vao);
-        glBindVertexArray(m_vao);
-        GLuint vbo{};
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), nullptr);
-        glEnableVertexAttribArray(0);
+        m_vao = DefaultShader::createVao(vertices);
     }
 
     void render(const Flipper& flipper, const DefaultShader& s)
