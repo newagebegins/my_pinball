@@ -71,17 +71,11 @@ private:
     }
 };
 
-struct Line
-{
-    glm::vec2 p0;
-    glm::vec2 p1;
-};
-
 struct Scene
 {
     Circle circle;
     std::vector<Flipper> flippers;
-    std::vector<Line> lines;
+    std::vector<glm::vec2> lines;
 };
 
 Scene makeScene();

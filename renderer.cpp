@@ -224,25 +224,11 @@ private:
     GLuint m_vao;
 };
 
-void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
-{
-    verts.push_back(p0);
-    verts.push_back(p1);
-}
-
 class LineRenderer
 {
 public:
-    LineRenderer(const std::vector<Line>& lines)
+    LineRenderer(const std::vector<glm::vec2>& verts)
     {
-        std::vector<glm::vec2> verts{};
-        // TODO: Optimize
-        for (const auto& line : lines)
-        {
-            verts.push_back(line.p0);
-            verts.push_back(line.p1);
-        }
-        addLine(verts, { -30.0f, 0.0f }, { 30.0f, 0.0f });
         m_vao = DefaultShader::createVao(verts);
         m_numVerts = static_cast<int>(verts.size());
     }
