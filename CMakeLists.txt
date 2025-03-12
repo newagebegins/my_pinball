@@ -18,7 +18,10 @@ FetchContent_MakeAvailable(glfw glm)
 add_subdirectory(deps/glad)
 
 add_executable(my_pinball main.cpp)
-target_compile_features(my_pinball PRIVATE cxx_std_17)
+target_compile_features(my_pinball PRIVATE
+  # C++17 is needed for inline static variables in classes (like shader code in DefaultShader)
+  cxx_std_17
+)
 target_compile_options(my_pinball PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror -pedantic-errors -Wall -Wextra -Wconversion -Wsign-conversion>
