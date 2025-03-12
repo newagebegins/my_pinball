@@ -178,11 +178,9 @@ class FlipperRenderer
 public:
     FlipperRenderer()
     {
-        constexpr float r0{ 1.1f };
-        constexpr float r1{ 0.7f };
         constexpr float width{ 8.0f };
-        constexpr float d{ width - r0 - r1 };
-        constexpr float cosA{ (r0 - r1) / d };
+        constexpr float d{ width - Flipper::r0 - Flipper::r1 };
+        constexpr float cosA{ (Flipper::r0 - Flipper::r1) / d };
         const float a{ std::acos(cosA) };
 
         std::vector<glm::vec2> vertices(numVerts);
@@ -193,8 +191,8 @@ public:
         {
             const float t{ static_cast<float>(i) / numCircleSegments1 };
             const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
-            const float x{ r0 * std::cos(angle) };
-            const float y{ r0 * std::sin(angle) };
+            const float x{ Flipper::r0 * std::cos(angle) };
+            const float y{ Flipper::r0 * std::sin(angle) };
             vertices[nextVertex++] = { x, y };
         }
 
@@ -202,8 +200,8 @@ public:
         {
             const float t{ static_cast<float>(i) / numCircleSegments2 };
             const float angle{ -a + t * 2.0f * a };
-            const float x{ d + r1 * std::cos(angle) };
-            const float y{ r1 * std::sin(angle) };
+            const float x{ d + Flipper::r1 * std::cos(angle) };
+            const float y{ Flipper::r1 * std::sin(angle) };
             vertices[nextVertex++] = { x, y };
         }
 
@@ -235,9 +233,15 @@ void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
 class LineRenderer
 {
 public:
-    LineRenderer()
+    LineRenderer(const std::vector<Line>& lines)
     {
         std::vector<glm::vec2> verts{};
+        // TODO: Optimize
+        for (const auto& line : lines)
+        {
+            verts.push_back(line.p0);
+            verts.push_back(line.p1);
+        }
         addLine(verts, { -30.0f, 0.0f }, { 30.0f, 0.0f });
         m_vao = DefaultShader::createVao(verts);
         m_numVerts = static_cast<int>(verts.size());
@@ -258,7 +262,8 @@ private:
 class Renderer
 {
 public:
-    Renderer()
+    Renderer(const Scene& scene)
+        : m_lineRenderer(scene.lines)
     {
         const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -20.0f }) };
 
@@ -294,6 +299,6 @@ private:
 
 void render(const Scene& scene)
 {
-    static Renderer renderer;
+    static Renderer renderer(scene);
     renderer.render(scene);
 }

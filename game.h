@@ -18,6 +18,9 @@ struct Circle
 class Flipper
 {
 public:
+    static constexpr float r0{ 1.1f };
+    static constexpr float r1{ 0.7f };
+
     Flipper(glm::vec2 position, bool isLeft)
         : m_position{ position }
         , m_scaleX{ isLeft ? 1.0f : -1.0f }
@@ -67,10 +70,17 @@ private:
     }
 };
 
+struct Line
+{
+    glm::vec2 p0;
+    glm::vec2 p1;
+};
+
 struct Scene
 {
     Circle circle;
     std::vector<Flipper> flippers;
+    std::vector<Line> lines;
 };
 
 Scene makeScene();
