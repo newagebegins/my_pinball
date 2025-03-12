@@ -107,6 +107,11 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
+        static float prevTime{ static_cast<float>(glfwGetTime()) };
+        const float currentTime{ static_cast<float>(glfwGetTime()) };
+        const float dt = currentTime - prevTime;
+        prevTime = currentTime;
+
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
             glfwSetWindowShouldClose(window, true);
@@ -123,7 +128,7 @@ int main()
             input |= BUTTON_R;
         }
 
-        update(input);
+        update(scene, dt, input);
         render(scene);
 
         glfwSwapBuffers(window);

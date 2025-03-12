@@ -2,8 +2,12 @@
 #define GAME_H
 
 #include <glm/glm.hpp> // for glm types
+#include <glm/ext/scalar_constants.hpp> // for glm::pi()
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_transform_2d.hpp> // for glm::translate(), glm::rotate(), glm::scale()
 
 #include <cstdint> // for std::uint8_t
+#include <vector>
 
 struct Circle
 {
@@ -11,18 +15,62 @@ struct Circle
     float radius;
 };
 
-struct Flipper
+class Flipper
 {
-    glm::mat3 transform;
-    glm::vec2 position;
-    float orientation;
-    float scaleX;
+public:
+    Flipper(glm::vec2 position, bool isLeft)
+        : m_position{ position }
+        , m_scaleX{ isLeft ? 1.0f : -1.0f }
+    {
+        updateTransform();
+    }
+
+    void activate()
+    {
+        m_angularVelocity = maxAngularVelocity;
+    }
+
+    void deactivate()
+    {
+        m_angularVelocity = -maxAngularVelocity;
+    }
+
+    void update(float dt)
+    {
+        m_orientation += m_angularVelocity * m_scaleX * dt;
+        m_orientation = glm::clamp(m_orientation, minAngle, maxAngle);
+        updateTransform();
+    }
+
+    const glm::mat3& getTransform() const
+    {
+        return m_transform;
+    }
+
+private:
+    static constexpr float minAngle{ glm::radians(-38.0f) };
+    static constexpr float maxAngle{ glm::radians(33.0f) };
+    static constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
+
+    glm::mat3 m_transform{ glm::mat3{ 1.0f } };
+    glm::vec2 m_position{ glm::vec2{ 0.0f } };
+    float m_orientation{ 0.0f };
+    float m_scaleX{ 1.0f };
+    float m_angularVelocity{ -maxAngularVelocity };
+
+    void updateTransform()
+    {
+        m_transform = glm::mat3{ 1.0f };
+        m_transform = glm::translate(m_transform, m_position);
+        m_transform = glm::rotate(m_transform, m_orientation);
+        m_transform = glm::scale(m_transform, { m_scaleX, 1.0f });
+    }
 };
 
 struct Scene
 {
     Circle circle;
-    Flipper flippers[2];
+    std::vector<Flipper> flippers;
 };
 
 Scene makeScene();
@@ -30,6 +78,6 @@ Scene makeScene();
 #define BUTTON_L (1 << 0)
 #define BUTTON_R (1 << 1)
 
-void update(std::uint8_t input);
+void update(Scene& scene, float dt, std::uint8_t input);
 
 #endif

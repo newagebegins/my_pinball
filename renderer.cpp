@@ -215,7 +215,7 @@ public:
     void render(const Flipper& flipper, const DefaultShader& s)
     {
         glBindVertexArray(m_vao);
-        s.setModel(flipper.transform);
+        s.setModel(flipper.getTransform());
         glDrawArrays(GL_LINE_LOOP, 0, numVerts);
     }
 private:
