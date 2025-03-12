@@ -65,9 +65,11 @@ public:
     DefaultShader()
         : m_program{ createShaderProgram(vertexCode, fragmentCode) }
         , m_modelLoc{ glGetUniformLocation(m_program, "model") }
+        , m_viewLoc{ glGetUniformLocation(m_program, "view") }
         , m_projectionLoc{ glGetUniformLocation(m_program, "projection") }
     {
         assert(m_modelLoc >= 0);
+        assert(m_viewLoc >= 0);
         assert(m_projectionLoc >= 0);
     }
 
@@ -79,6 +81,11 @@ public:
     void setModel(const glm::mat3& model) const
     {
         glUniformMatrix3fv(m_modelLoc, 1, GL_FALSE, &model[0][0]);
+    }
+
+    void setView(const glm::mat3& view) const
+    {
+        glUniformMatrix3fv(m_viewLoc, 1, GL_FALSE, &view[0][0]);
     }
 
     void setProjection(const glm::mat4& projection) const
@@ -104,6 +111,7 @@ public:
 private:
     const GLuint m_program;
     const GLint m_modelLoc;
+    const GLint m_viewLoc;
     const GLint m_projectionLoc;
 
     inline static const GLchar* const vertexCode{ R"(
@@ -112,11 +120,12 @@ private:
 layout (location = 0) in vec2 pos;
 
 uniform mat3 model;
+uniform mat3 view;
 uniform mat4 projection;
 
 void main()
 {
-	gl_Position = projection * vec4(model * vec3(pos, 1.0), 1.0);
+	gl_Position = projection * vec4(view * model * vec3(pos, 1.0), 1.0);
 }
 )" };
 
@@ -213,7 +222,7 @@ private:
     static constexpr int numCircleSegments1{ 16 };
     static constexpr int numCircleSegments2{ 8 };
     static constexpr int numVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
-    
+
     GLuint m_vao;
 };
 
@@ -222,10 +231,13 @@ class Renderer
 public:
     Renderer()
     {
+        const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -20.0f }) };
+
         constexpr float zoom{ 32.0f };
         const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
 
         m_defShader.use();
+        m_defShader.setView(view);
         m_defShader.setProjection(projection);
     }
 
