@@ -1,21 +1,13 @@
+#include "Constants.h"
 #include "Circle.h"
-#include "CircleRenderer.h"
-#include "DefaultShader.h"
 #include "Flipper.h"
-#include "FlipperRenderer.h"
-#include "LineSegmentRenderer.h"
+#include "Renderer.h"
 
-#include <glm/glm.hpp> // for glm types
-#include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
-#include <glm/ext/scalar_constants.hpp> // for glm::pi()
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/matrix_transform_2d.hpp> // for glm::translate(), glm::rotate(), glm::scale()
+#include <glm/glm.hpp>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <cassert>
 #include <cmath> // for std::sin(), std::cos(), std::acos()
 #include <cstdint> // for std::uint8_t
 #include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
@@ -80,13 +72,6 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-struct Scene
-{
-    Circle circle;
-    std::vector<Flipper> flippers;
-    std::vector<glm::vec2> lines;
-};
-
 #define BUTTON_L (1 << 0)
 #define BUTTON_R (1 << 1)
 
@@ -105,17 +90,8 @@ void addMirroredLineSegments(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::v
     verts.emplace_back(-p1.x, p1.y);
 }
 
-Scene scene{};
-
-constexpr float worldL{ -35.0f };
-constexpr float worldR{ 35.0f };
-constexpr float worldT{ 70.0f };
-constexpr float worldB{ 0.0f };
-
-DefaultShader* defShader{};
-CircleRenderer* circleRenderer{};
-FlipperRenderer* flipperRenderer{};
-LineSegmentRenderer* lineSegmentRenderer{};
+Game game{};
+Renderer* renderer{};
 
 void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
 {
@@ -131,34 +107,11 @@ void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
     }
 }
 
-void render()
-{
-    const glm::mat3 identity{ 1.0f };
-    const glm::mat4 projection{ glm::ortho(worldL, worldR, worldB, worldT, -1.0f, 1.0f) };
-
-    defShader->use();
-    defShader->setView(identity);
-    defShader->setProjection(projection);
-
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    circleRenderer->render(scene.circle, defShader);
-
-    for (const auto& flipper : scene.flippers)
-    {
-        flipperRenderer->render(flipper, defShader);
-    }
-
-    lineSegmentRenderer->render(defShader);
-}
-
 void windowRefreshCallback(GLFWwindow* window)
 {
-    render();
+    renderer->render(game);
     glfwSwapBuffers(window);
 }
-
 
 struct Line
 {
@@ -177,23 +130,23 @@ void update(float dt, std::uint8_t input)
 {
     if (input & BUTTON_L)
     {
-        scene.flippers[0].activate();
+        game.flippers[0].activate();
     }
     else
     {
-        scene.flippers[0].deactivate();
+        game.flippers[0].deactivate();
     }
 
     if (input & BUTTON_R)
     {
-        scene.flippers[1].activate();
+        game.flippers[1].activate();
     }
     else
     {
-        scene.flippers[1].deactivate();
+        game.flippers[1].deactivate();
     }
 
-    for (auto& flipper : scene.flippers)
+    for (auto& flipper : game.flippers)
     {
         flipper.update(dt);
     }
@@ -242,13 +195,13 @@ int main()
 
     // Ball's radius is 1.0f, everything is measured relative to that
 
-    scene.circle = { {0.0f, 10.0f}, 1.0f };
+    game.circle = { {0.0f, 10.0f}, 1.0f };
 
     constexpr float flipperX{ 10.0f };
     constexpr float flipperY{ 7.0f };
 
-    scene.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
-    scene.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
+    game.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
+    game.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
 
     // Angled wall right near the flipper
     {
@@ -256,9 +209,9 @@ int main()
         constexpr float width{ 11.0f };
         const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
         const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
-        addMirroredLineSegments(scene.lines, p0, p1);
+        addMirroredLineSegments(game.lines, p0, p1);
         const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
-        addMirroredLineSegments(scene.lines, p1, p2);
+        addMirroredLineSegments(game.lines, p1, p2);
     }
 
     // Draw a border that represents the gameplay area
@@ -266,21 +219,18 @@ int main()
         constexpr float d{ 0.1f };
 
         // bottom
-        addLineSegment(scene.lines, { worldL+d, worldB+d }, { worldR-d, worldB+d });
+        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldB+d });
         // top
-        addLineSegment(scene.lines, { worldL+d, worldT-d }, { worldR-d, worldT-d });
+        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldT-d }, { Constants::worldR-d, Constants::worldT-d });
         // left
-        addLineSegment(scene.lines, { worldL+d, worldB+d }, { worldL+d, worldT-d });
+        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldL+d, Constants::worldT-d });
         // right
-        addLineSegment(scene.lines, { worldR-d, worldB+d }, { worldR-d, worldT-d });
+        addLineSegment(game.lines, { Constants::worldR-d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldT-d });
     }
 
-    addLine(scene.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
+    addLine(game.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
-    defShader = new DefaultShader();
-    circleRenderer = new CircleRenderer();
-    flipperRenderer = new FlipperRenderer();
-    lineSegmentRenderer = new LineSegmentRenderer(scene.lines);
+    renderer = new Renderer(game.lines);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -306,16 +256,13 @@ int main()
         }
 
         update(dt, input);
-        render();
+        renderer->render(game);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    delete lineSegmentRenderer;
-    delete flipperRenderer;
-    delete circleRenderer;
-    delete defShader;
+    delete renderer;
 
     return EXIT_SUCCESS;
 }

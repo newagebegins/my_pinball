@@ -41,9 +41,9 @@ static std::vector<glm::vec2> makeVerts()
 FlipperRenderer::FlipperRenderer() : m_vao{ DefaultShader::createVao(makeVerts()) }
 {}
 
-void FlipperRenderer::render(const Flipper& flipper, const DefaultShader* s) const
+void FlipperRenderer::render(const Flipper& flipper, const DefaultShader& s) const
 {
-    s->setModel(flipper.getTransform());
+    s.setModel(flipper.getTransform());
     glBindVertexArray(m_vao);
     glDrawArrays(GL_LINE_LOOP, 0, numVerts);
 }

@@ -11,7 +11,7 @@ class LineSegmentRenderer
 {
 public:
     LineSegmentRenderer(const std::vector<glm::vec2>& verts);
-    void render(const DefaultShader* s) const;
+    void render(const DefaultShader& s) const;
 private:
     const GLuint m_vao{};
     const int m_numVerts{};

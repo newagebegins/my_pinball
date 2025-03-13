@@ -11,7 +11,7 @@ class FlipperRenderer
 public:
     FlipperRenderer();
     FlipperRenderer(const FlipperRenderer&) = delete;
-    void render(const Flipper& flipper, const DefaultShader* s) const;
+    void render(const Flipper& flipper, const DefaultShader& s) const;
 private:
     const GLuint m_vao{};
 };
