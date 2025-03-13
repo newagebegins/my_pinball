@@ -24,7 +24,7 @@ static std::vector<glm::vec2> makeVerts()
 CircleRenderer::CircleRenderer() : m_vao{ DefaultShader::createVao(makeVerts()) }
 {}
 
-void CircleRenderer::render(const Circle& c, const DefaultShader* s)
+void CircleRenderer::render(const Circle& c, const DefaultShader* s) const
 {
     glm::mat3 model{ 1.0f };
     model = glm::translate(model, c.center);

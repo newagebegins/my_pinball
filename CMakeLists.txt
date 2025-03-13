@@ -17,6 +17,8 @@ add_subdirectory(deps/glm)
 add_executable(my_pinball
   CircleRenderer.cpp
   DefaultShader.cpp
+  Flipper.cpp
+  FlipperRenderer.cpp
   main.cpp
   Shader.cpp
   ShaderProgram.cpp

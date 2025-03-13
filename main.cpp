@@ -1,6 +1,8 @@
 #include "Circle.h"
 #include "CircleRenderer.h"
 #include "DefaultShader.h"
+#include "Flipper.h"
+#include "FlipperRenderer.h"
 
 #include <glm/glm.hpp> // for glm types
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
@@ -77,62 +79,6 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-class Flipper
-{
-public:
-    static constexpr float r0{ 1.1f };
-    static constexpr float r1{ 0.7f };
-
-    static constexpr float minAngle{ glm::radians(-38.0f) };
-    static constexpr float maxAngle{ glm::radians(33.0f) };
-
-    Flipper(glm::vec2 position, bool isLeft)
-        : m_position{ position }
-        , m_scaleX{ isLeft ? 1.0f : -1.0f }
-    {
-        updateTransform();
-    }
-
-    void activate()
-    {
-        m_angularVelocity = maxAngularVelocity;
-    }
-
-    void deactivate()
-    {
-        m_angularVelocity = -maxAngularVelocity;
-    }
-
-    void update(float dt)
-    {
-        m_orientation += m_angularVelocity * dt;
-        m_orientation = glm::clamp(m_orientation, minAngle, maxAngle);
-        updateTransform();
-    }
-
-    const glm::mat3& getTransform() const
-    {
-        return m_transform;
-    }
-
-private:
-    static constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
-
-    glm::mat3 m_transform{ glm::mat3{ 1.0f } };
-    glm::vec2 m_position{ glm::vec2{ 0.0f } };
-    float m_orientation{ 0.0f };
-    float m_scaleX{ 1.0f };
-    float m_angularVelocity{ -maxAngularVelocity };
-
-    void updateTransform()
-    {
-        m_transform = glm::mat3{ 1.0f };
-        m_transform = glm::translate(m_transform, m_position);
-        m_transform = glm::rotate(m_transform, m_orientation * m_scaleX);
-        m_transform = glm::scale(m_transform, { m_scaleX, 1.0f });
-    }
-};
-
 struct Scene
 {
     Circle circle;
@@ -165,14 +111,8 @@ constexpr float worldR{ 35.0f };
 constexpr float worldT{ 70.0f };
 constexpr float worldB{ 0.0f };
 
-static constexpr int numCircleSegments1{ 16 };
-static constexpr int numCircleSegments2{ 8 };
-static constexpr int flipperNumVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
-
 struct RenderData
 {
-    GLuint flipperVao;
-
     GLuint lineSegmentsVao;
     int numLineSegmentVerts;
 };
@@ -181,6 +121,7 @@ RenderData rd{};
 
 DefaultShader* defShader{};
 CircleRenderer* circleRenderer{};
+FlipperRenderer* flipperRenderer{};
 
 void render(GLFWwindow* window)
 {
@@ -214,9 +155,7 @@ void render(GLFWwindow* window)
 
     for (const auto& flipper : scene.flippers)
     {
-        glBindVertexArray(rd.flipperVao);
-        defShader->setModel(flipper.getTransform());
-        glDrawArrays(GL_LINE_LOOP, 0, flipperNumVerts);
+        flipperRenderer->render(flipper, defShader);
     }
 
     defShader->setModel(identity);
@@ -344,40 +283,7 @@ int main()
 
     defShader = new DefaultShader();
     circleRenderer = new CircleRenderer();
-
-    // Create flipper VAO
-    {
-        constexpr float width{ 8.0f };
-        constexpr float d{ width - Flipper::r0 - Flipper::r1 };
-        constexpr float cosA{ (Flipper::r0 - Flipper::r1) / d };
-        const float a{ std::acos(cosA) };
-
-        std::vector<glm::vec2> vertices(flipperNumVerts);
-
-        std::size_t nextVertex{ 0 };
-
-        for (int i{ 0 }; i <= numCircleSegments1; ++i)
-        {
-            const float t{ static_cast<float>(i) / numCircleSegments1 };
-            const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
-            const float x{ Flipper::r0 * std::cos(angle) };
-            const float y{ Flipper::r0 * std::sin(angle) };
-            vertices[nextVertex++] = { x, y };
-        }
-
-        for (int i{ 0 }; i <= numCircleSegments2; ++i)
-        {
-            const float t{ static_cast<float>(i) / numCircleSegments2 };
-            const float angle{ -a + t * 2.0f * a };
-            const float x{ d + Flipper::r1 * std::cos(angle) };
-            const float y{ Flipper::r1 * std::sin(angle) };
-            vertices[nextVertex++] = { x, y };
-        }
-
-        assert(nextVertex == flipperNumVerts);
-
-        rd.flipperVao = DefaultShader::createVao(vertices);
-    }
+    flipperRenderer = new FlipperRenderer();
 
     // Create line segments VAO
     {
@@ -413,6 +319,7 @@ int main()
         glfwPollEvents();
     }
 
+    delete flipperRenderer;
     delete circleRenderer;
     delete defShader;
 
