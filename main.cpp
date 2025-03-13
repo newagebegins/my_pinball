@@ -1,4 +1,4 @@
-#include "ShaderProgram.h"
+#include "DefaultShader.h"
 
 #include <glm/glm.hpp> // for glm types
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
@@ -175,39 +175,8 @@ static constexpr int numCircleSegments1{ 16 };
 static constexpr int numCircleSegments2{ 8 };
 static constexpr int flipperNumVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
 
-static const GLchar* const vertexCode{ R"(
-#version 410
-
-layout (location = 0) in vec2 pos;
-
-uniform mat3 model;
-uniform mat3 view;
-uniform mat4 projection;
-
-void main()
-{
-    gl_Position = projection * vec4(view * model * vec3(pos, 1.0), 1.0);
-}
-)" };
-
-static const GLchar* const fragmentCode{ R"(
-#version 410
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
-}
-)" };
-    
 struct RenderData
 {
-    GLuint program;
-    GLint modelLoc;
-    GLint viewLoc;
-    GLint projectionLoc;
-
     GLuint circleVao;
     GLuint flipperVao;
 
@@ -216,6 +185,8 @@ struct RenderData
 };
 
 RenderData rd{};
+
+DefaultShader* defShader{};
 
 void render(GLFWwindow* window)
 {
@@ -227,9 +198,9 @@ void render(GLFWwindow* window)
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(worldL, worldR, worldB, worldT, -1.0f, 1.0f) };
 
-    glUseProgram(rd.program);
-    glUniformMatrix3fv(rd.viewLoc, 1, GL_FALSE, &identity[0][0]);
-    glUniformMatrix4fv(rd.projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    defShader->use();
+    defShader->setView(identity);
+    defShader->setProjection(projection);
 
     if (width > height)
     {
@@ -250,18 +221,18 @@ void render(GLFWwindow* window)
         model = glm::translate(model, scene.circle.center);
         model = glm::scale(model, glm::vec2{ scene.circle.radius });
         glBindVertexArray(rd.circleVao);
-        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &model[0][0]);
+        defShader->setModel(model);
         glDrawArrays(GL_LINE_LOOP, 0, circleNumVerts);
     }
 
     for (const auto& flipper : scene.flippers)
     {
         glBindVertexArray(rd.flipperVao);
-        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.getTransform()[0][0]);
+        defShader->setModel(flipper.getTransform());
         glDrawArrays(GL_LINE_LOOP, 0, flipperNumVerts);
     }
 
-    glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &identity[0][0]);
+    defShader->setModel(identity);
     glBindVertexArray(rd.lineSegmentsVao);
     glDrawArrays(GL_LINES, 0, rd.numLineSegmentVerts);
 
@@ -279,21 +250,6 @@ void addLine(std::vector<glm::vec2>& verts, const Line& l)
     constexpr float len{ 100.0f };
     verts.push_back(l.p + l.d*len);
     verts.push_back(l.p - l.d*len);
-}
-
-static GLuint createVao(const std::vector<glm::vec2>& verts)
-{
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
-    glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), nullptr);
-    glEnableVertexAttribArray(0);
-    return vao;
 }
 
 void update(float dt, std::uint8_t input)
@@ -399,15 +355,7 @@ int main()
 
     addLine(scene.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
-    ShaderProgram prog{ vertexCode, fragmentCode };
-    rd.program = prog.id;
-    rd.modelLoc = glGetUniformLocation(rd.program, "model");
-    rd.viewLoc = glGetUniformLocation(rd.program, "view");
-    rd.projectionLoc = glGetUniformLocation(rd.program, "projection");
-
-    assert(rd.modelLoc >= 0);
-    assert(rd.viewLoc >= 0);
-    assert(rd.projectionLoc >= 0);
+    defShader = new DefaultShader();
 
     // Create circle VAO
     {
@@ -420,7 +368,7 @@ int main()
             verts[i] = { std::cos(angle), std::sin(angle) };
         }
 
-        rd.circleVao = createVao(verts);
+        rd.circleVao = DefaultShader::createVao(verts);
     }
 
     // Create flipper VAO
@@ -454,12 +402,12 @@ int main()
 
         assert(nextVertex == flipperNumVerts);
 
-        rd.flipperVao = createVao(vertices);
+        rd.flipperVao = DefaultShader::createVao(vertices);
     }
 
     // Create line segments VAO
     {
-        rd.lineSegmentsVao = createVao(scene.lines);
+        rd.lineSegmentsVao = DefaultShader::createVao(scene.lines);
         rd.numLineSegmentVerts = static_cast<int>(scene.lines.size());
     }
 
@@ -490,6 +438,8 @@ int main()
         render(window);
         glfwPollEvents();
     }
+
+    delete defShader;
 
     return EXIT_SUCCESS;
 }
