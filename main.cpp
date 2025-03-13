@@ -73,13 +73,13 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+void addLineSegment(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
 {
     verts.push_back(p0);
     verts.push_back(p1);
 }
 
-void addMirroredLines(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+void addMirroredLineSegments(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
 {
     verts.push_back(p0);
     verts.push_back(p1);
@@ -141,6 +141,19 @@ void render(GLFWwindow* window)
     m_lineRenderer->render(m_defShader);
 }
 
+struct Line
+{
+    glm::vec2 p; // point on the line
+    glm::vec2 d; // direction
+};
+
+void addLine(std::vector<glm::vec2>& verts, const Line& l)
+{
+    constexpr float len{ 100.0f };
+    verts.push_back(l.p + l.d*len);
+    verts.push_back(l.p - l.d*len);
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -197,24 +210,26 @@ int main()
         constexpr float width{ 11.0f };
         const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
         const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
-        addMirroredLines(scene.lines, p0, p1);
+        addMirroredLineSegments(scene.lines, p0, p1);
         const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
-        addMirroredLines(scene.lines, p1, p2);
+        addMirroredLineSegments(scene.lines, p1, p2);
     }
 
     // Draw a border that represents the gameplay area
     {
-        constexpr float d{ 1.0f };
+        constexpr float d{ 0.1f };
 
         // bottom
-        addLine(scene.lines, { worldL+d, worldB+d }, { worldR-d, worldB+d });
+        addLineSegment(scene.lines, { worldL+d, worldB+d }, { worldR-d, worldB+d });
         // top
-        addLine(scene.lines, { worldL+d, worldT-d }, { worldR-d, worldT-d });
+        addLineSegment(scene.lines, { worldL+d, worldT-d }, { worldR-d, worldT-d });
         // left
-        addLine(scene.lines, { worldL+d, worldB+d }, { worldL+d, worldT-d });
+        addLineSegment(scene.lines, { worldL+d, worldB+d }, { worldL+d, worldT-d });
         // right
-        addLine(scene.lines, { worldR-d, worldB+d }, { worldR-d, worldT-d });
+        addLineSegment(scene.lines, { worldR-d, worldB+d }, { worldR-d, worldT-d });
     }
+
+    addLine(scene.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
     m_defShader = new DefaultShader{};
     m_circleRenderer = new CircleRenderer{};
