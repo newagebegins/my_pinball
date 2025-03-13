@@ -339,7 +339,7 @@ static GLuint createVao(const std::vector<glm::vec2>& verts)
     return vao;
 }
 
-void update(Scene& scene, float dt, std::uint8_t input)
+void update(float dt, std::uint8_t input)
 {
     if (input & BUTTON_L)
     {
@@ -528,7 +528,7 @@ int main()
             input |= BUTTON_R;
         }
 
-        update(scene, dt, input);
+        update(dt, input);
         render(window);
         glfwPollEvents();
     }
