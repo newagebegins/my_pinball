@@ -1,19 +1,12 @@
-#include "Constants.h"
-#include "Circle.h"
-#include "Flipper.h"
 #include "Game.h"
 #include "Renderer.h"
-
-#include <glm/glm.hpp>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <cmath> // for std::sin(), std::cos(), std::acos()
 #include <cstdint> // for std::uint8_t
 #include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
 #include <iostream>
-#include <vector>
 
 static void errorCallback(int /*error*/, const char* description)
 {
@@ -73,21 +66,6 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-void addLineSegment(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
-{
-    verts.push_back(p0);
-    verts.push_back(p1);
-}
-
-void addMirroredLineSegments(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
-{
-    verts.push_back(p0);
-    verts.push_back(p1);
-
-    verts.emplace_back(-p0.x, p0.y);
-    verts.emplace_back(-p1.x, p1.y);
-}
-
 Game game{};
 Renderer* renderer{};
 
@@ -109,19 +87,6 @@ void windowRefreshCallback(GLFWwindow* window)
 {
     renderer->render(game);
     glfwSwapBuffers(window);
-}
-
-struct Line
-{
-    glm::vec2 p; // point on the line
-    glm::vec2 d; // direction
-};
-
-void addLine(std::vector<glm::vec2>& verts, const Line& l)
-{
-    constexpr float len{ 100.0f };
-    verts.push_back(l.p + l.d*len);
-    verts.push_back(l.p - l.d*len);
 }
 
 int main()
@@ -164,43 +129,6 @@ int main()
 
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
-
-    // Ball's radius is 1.0f, everything is measured relative to that
-
-    game.circle = { {0.0f, 10.0f}, 1.0f };
-
-    constexpr float flipperX{ 10.0f };
-    constexpr float flipperY{ 7.0f };
-
-    game.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
-    game.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
-
-    // Angled wall right near the flipper
-    {
-        constexpr float angle{ glm::radians(180.0f) + Flipper::minAngle };
-        constexpr float width{ 11.0f };
-        const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-        const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
-        addMirroredLineSegments(game.lines, p0, p1);
-        const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
-        addMirroredLineSegments(game.lines, p1, p2);
-    }
-
-    // Draw a border that represents the gameplay area
-    {
-        constexpr float d{ 0.1f };
-
-        // bottom
-        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldB+d });
-        // top
-        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldT-d }, { Constants::worldR-d, Constants::worldT-d });
-        // left
-        addLineSegment(game.lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldL+d, Constants::worldT-d });
-        // right
-        addLineSegment(game.lines, { Constants::worldR-d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldT-d });
-    }
-
-    addLine(game.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
     renderer = new Renderer(game.lines);
 

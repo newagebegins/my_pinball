@@ -17,7 +17,8 @@ struct Game
     std::vector<Flipper> flippers{};
     std::vector<glm::vec2> lines{};
 
-    void Game::update(float dt, std::uint8_t input);
+    Game();
+    void update(float dt, std::uint8_t input);
 };
 
 #endif
