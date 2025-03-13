@@ -117,30 +117,28 @@ CircleRenderer* circleRenderer{};
 FlipperRenderer* flipperRenderer{};
 LineSegmentRenderer* lineSegmentRenderer{};
 
-void render(GLFWwindow* window)
+void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
 {
-    int width{};
-    int height{};
-    glfwGetFramebufferSize(window, &width, &height);
-    const float ratio{ width / static_cast<float>(height) };
+    if (width > height)
+    {
+        int w{ height };
+        glViewport(width/2 - w/2, 0, w, height);
+    }
+    else
+    {
+        int h{ width };
+        glViewport(0, height/2 - h/2, width, h);
+    }
+}
 
+void render()
+{
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(worldL, worldR, worldB, worldT, -1.0f, 1.0f) };
 
     defShader->use();
     defShader->setView(identity);
     defShader->setProjection(projection);
-
-    if (width > height)
-    {
-        int w{ static_cast<GLsizei>(width / ratio) };
-        glViewport(width/2 - w/2, 0, w, height);
-    }
-    else
-    {
-        int h{ static_cast<GLsizei>(height * ratio) };
-        glViewport(0, height/2 - h/2, width, h);
-    }
 
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -153,9 +151,14 @@ void render(GLFWwindow* window)
     }
 
     lineSegmentRenderer->render(defShader);
+}
 
+void windowRefreshCallback(GLFWwindow* window)
+{
+    render();
     glfwSwapBuffers(window);
 }
+
 
 struct Line
 {
@@ -234,7 +237,8 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
-    glfwSetWindowRefreshCallback(window, render);
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
     // Ball's radius is 1.0f, everything is measured relative to that
 
@@ -302,7 +306,9 @@ int main()
         }
 
         update(dt, input);
-        render(window);
+        render();
+
+        glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
