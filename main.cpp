@@ -102,15 +102,12 @@ LineRenderer* m_lineRenderer{};
 
 void render(GLFWwindow* window)
 {
-    int width, height;
+    int width{};
+    int height{};
     glfwGetFramebufferSize(window, &width, &height);
-    const float ratio = width / (float) height;
+    const float ratio{ width / static_cast<float>(height) };
 
-    //const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -30.0f }) };
     const glm::mat3 view{ 1.0f };
-
-    //constexpr float zoom{ 70.0f };
-    //const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
     const glm::mat4 projection{ glm::ortho(worldL, worldR, worldB, worldT, -1.0f, 1.0f) };
 
     m_defShader->use();
