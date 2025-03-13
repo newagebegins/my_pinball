@@ -19,6 +19,7 @@ add_executable(my_pinball
   DefaultShader.cpp
   Flipper.cpp
   FlipperRenderer.cpp
+  Game.cpp
   LineSegmentRenderer.cpp
   main.cpp
   Renderer.cpp

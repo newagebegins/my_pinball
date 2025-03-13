@@ -1,6 +1,7 @@
 #include "Constants.h"
 #include "Circle.h"
 #include "Flipper.h"
+#include "Game.h"
 #include "Renderer.h"
 
 #include <glm/glm.hpp>
@@ -72,9 +73,6 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-#define BUTTON_L (1 << 0)
-#define BUTTON_R (1 << 1)
-
 void addLineSegment(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
 {
     verts.push_back(p0);
@@ -124,32 +122,6 @@ void addLine(std::vector<glm::vec2>& verts, const Line& l)
     constexpr float len{ 100.0f };
     verts.push_back(l.p + l.d*len);
     verts.push_back(l.p - l.d*len);
-}
-
-void update(float dt, std::uint8_t input)
-{
-    if (input & BUTTON_L)
-    {
-        game.flippers[0].activate();
-    }
-    else
-    {
-        game.flippers[0].deactivate();
-    }
-
-    if (input & BUTTON_R)
-    {
-        game.flippers[1].activate();
-    }
-    else
-    {
-        game.flippers[1].deactivate();
-    }
-
-    for (auto& flipper : game.flippers)
-    {
-        flipper.update(dt);
-    }
 }
 
 int main()
@@ -255,7 +227,7 @@ int main()
             input |= BUTTON_R;
         }
 
-        update(dt, input);
+        game.update(dt, input);
         renderer->render(game);
 
         glfwSwapBuffers(window);
