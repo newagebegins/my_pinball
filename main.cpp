@@ -4,16 +4,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <cstdint> // for std::uint8_t
-#include <cstdlib> // for std::exit(), EXIT_SUCCESS, EXIT_FAILURE
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
 
-static void errorCallback(int /*error*/, const char* description)
-{
-    std::cerr << "GLFW error: " << description << '\n';
-}
+Game game{};
+Renderer* renderer{};
 
-void APIENTRY glDebugOutput(
+static void APIENTRY glDebugOutput(
     GLenum source,
     GLenum type,
     GLuint id,
@@ -66,10 +64,12 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
-Game game{};
-Renderer* renderer{};
+static void errorCallback(int /*error*/, const char* description)
+{
+    std::cerr << "GLFW error: " << description << '\n';
+}
 
-void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
+static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
 {
     if (width > height)
     {
@@ -83,7 +83,7 @@ void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
     }
 }
 
-void windowRefreshCallback(GLFWwindow* window)
+static void windowRefreshCallback(GLFWwindow* window)
 {
     renderer->render(game);
     glfwSwapBuffers(window);
