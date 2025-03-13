@@ -1,31 +1,5 @@
 #include "DefaultShader.h"
 
-static const GLchar* const vertexCode{ R"(
-#version 410
-
-layout (location = 0) in vec2 pos;
-
-uniform mat3 model;
-uniform mat3 view;
-uniform mat4 projection;
-
-void main()
-{
-    gl_Position = projection * vec4(view * model * vec3(pos, 1.0), 1.0);
-}
-)" };
-
-static const GLchar* const fragmentCode{ R"(
-#version 410
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
-}
-)" };
-
 GLuint DefaultShader::createVao(const std::vector<glm::vec2>& verts)
 {
     GLuint vao;
@@ -42,7 +16,7 @@ GLuint DefaultShader::createVao(const std::vector<glm::vec2>& verts)
 }
 
 DefaultShader::DefaultShader()
-    : m_program{ vertexCode, fragmentCode }
+    : m_program{ "assets/default_v.glsl", "assets/default_f.glsl" }
     , m_modelLoc{ glGetUniformLocation(m_program.id, "model") }
     , m_viewLoc{ glGetUniformLocation(m_program.id, "view") }
     , m_projectionLoc{ glGetUniformLocation(m_program.id, "projection") }

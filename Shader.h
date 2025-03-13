@@ -7,7 +7,7 @@ class Shader
 {
 public:
     const GLuint id{};
-    Shader(GLenum type, const GLchar* code);
+    Shader(GLenum type, const char* path);
     Shader(const Shader&) = delete;
     ~Shader();
 };

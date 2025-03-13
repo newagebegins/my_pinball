@@ -1,12 +1,17 @@
 #include "Shader.h"
 
+#include "File.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
 
-Shader::Shader(GLenum type, const GLchar* code)
+Shader::Shader(GLenum type, const char* path)
     : id{ glCreateShader(type) }
 {
+    std::string codeStr{ File::readEntireFile(path) };
+    const char* code{ codeStr.c_str() };
+
     glShaderSource(id, 1, &code, nullptr);
     glCompileShader(id);
 

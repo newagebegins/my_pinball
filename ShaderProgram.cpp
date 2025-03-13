@@ -5,10 +5,10 @@
 #include <cstdlib>
 #include <iostream>
 
-GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
+GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
 {
-    const Shader vs{ GL_VERTEX_SHADER, vertexCode };
-    const Shader fs{ GL_FRAGMENT_SHADER, fragmentCode };
+    const Shader vs{ GL_VERTEX_SHADER, vertexPath };
+    const Shader fs{ GL_FRAGMENT_SHADER, fragmentPath };
 
     const GLuint id{ glCreateProgram() };
     glAttachShader(id, vs.id);

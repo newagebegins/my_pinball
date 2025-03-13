@@ -7,7 +7,7 @@ class ShaderProgram
 {
 public:
     const GLuint id{};
-    ShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode);
+    ShaderProgram(const char* vertexPath, const char* fragmentPath);
     ShaderProgram(const ShaderProgram&) = delete;
     ~ShaderProgram();
 };
