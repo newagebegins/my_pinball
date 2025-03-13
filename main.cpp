@@ -12,6 +12,14 @@ static void errorCallback(int /*error*/, const char* description)
     std::cerr << "GLFW error: " << description << '\n';
 }
 
+void render(GLFWwindow* window);
+
+void windowRefreshCallback(GLFWwindow* window)
+{
+    render(window);
+    glfwSwapBuffers(window);
+}
+
 void APIENTRY glDebugOutput(
     GLenum source,
     GLenum type,
@@ -65,6 +73,74 @@ void APIENTRY glDebugOutput(
     std::cerr << "\n\n";
 }
 
+void addLine(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+{
+    verts.push_back(p0);
+    verts.push_back(p1);
+}
+
+void addMirroredLines(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+{
+    verts.push_back(p0);
+    verts.push_back(p1);
+
+    verts.emplace_back(-p0.x, p0.y);
+    verts.emplace_back(-p1.x, p1.y);
+}
+
+Scene scene{};
+
+constexpr float l{ -35.0f };
+constexpr float r{ 35.0f };
+constexpr float t{ 70.0f };
+constexpr float b{ 0.0f };
+
+DefaultShader* m_defShader{};
+CircleRenderer* m_circleRenderer{};
+FlipperRenderer* m_flipperRenderer{};
+LineRenderer* m_lineRenderer{};
+
+void render(GLFWwindow* window)
+{
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    const float ratio = width / (float) height;
+
+    //const glm::mat3 view{ glm::translate(glm::mat3{ 1.0f }, { 0.0f, -30.0f }) };
+    const glm::mat3 view{ 1.0f };
+
+    //constexpr float zoom{ 70.0f };
+    //const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
+    const glm::mat4 projection{ glm::ortho(l, r, b, t, -1.0f, 1.0f) };
+
+    m_defShader->use();
+    m_defShader->setView(view);
+    m_defShader->setProjection(projection);
+
+    if (width > height)
+    {
+        int w{ static_cast<GLsizei>(width / ratio) };
+        glViewport(width/2 - w/2, 0, w, height);
+    }
+    else
+    {
+        int h{ static_cast<GLsizei>(height * ratio) };
+        glViewport(0, height/2 - h/2, width, h);
+    }
+
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    m_circleRenderer->render(scene.circle, m_defShader);
+
+    for (const auto& flipper : scene.flippers)
+    {
+        m_flipperRenderer->render(flipper, m_defShader);
+    }
+
+    m_lineRenderer->render(m_defShader);
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -81,7 +157,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
-    GLFWwindow* window{ glfwCreateWindow(800, 800, "my_pinball", nullptr, nullptr) };
+    GLFWwindow* window{ glfwCreateWindow(500, 800, "my_pinball", nullptr, nullptr) };
     if (!window)
     {
         std::cerr << "Failed to create GLFW window\n";
@@ -103,7 +179,47 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
-    Scene scene{ makeScene() };
+    glfwSetWindowRefreshCallback(window, windowRefreshCallback);
+
+    // Ball's radius is 1.0f, everything is measured relative to that
+
+    scene.circle = { {0.0f, 10.0f}, 1.0f };
+
+    constexpr float flipperX{ 10.0f };
+    constexpr float flipperY{ 7.0f };
+
+    scene.flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
+    scene.flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
+
+    // Angled wall right near the flipper
+    {
+        constexpr float angle{ glm::radians(180.0f) + Flipper::minAngle };
+        constexpr float width{ 11.0f };
+        const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+        const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
+        addMirroredLines(scene.lines, p0, p1);
+        const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
+        addMirroredLines(scene.lines, p1, p2);
+    }
+
+    // Draw a border that represents the gameplay area
+    {
+        constexpr float d{ 1.0f };
+
+        // bottom
+        addLine(scene.lines, { l+d, b+d }, { r-d, b+d });
+        // top
+        addLine(scene.lines, { l+d, t-d }, { r-d, t-d });
+        // left
+        addLine(scene.lines, { l+d, b+d }, { l+d, t-d });
+        // right
+        addLine(scene.lines, { r-d, b+d }, { r-d, t-d });
+    }
+
+    m_defShader = new DefaultShader{};
+    m_circleRenderer = new CircleRenderer{};
+    m_flipperRenderer = new FlipperRenderer{};
+    m_lineRenderer = new LineRenderer{ scene.lines };
 
     while (!glfwWindowShouldClose(window))
     {
@@ -129,8 +245,7 @@ int main()
         }
 
         update(scene, dt, input);
-        render(scene);
-
+        render(window);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
