@@ -14,7 +14,7 @@ FetchContent_MakeAvailable(glfw)
 add_subdirectory(deps/glad)
 add_subdirectory(deps/glm)
 
-add_executable(my_pinball main.cpp game.cpp)
+add_executable(my_pinball main.cpp)
 target_compile_features(my_pinball PRIVATE
   # C++17 is needed for inline static variables in classes (like shader code in DefaultShader)
   cxx_std_17
