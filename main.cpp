@@ -20,14 +20,6 @@ static void errorCallback(int /*error*/, const char* description)
     std::cerr << "GLFW error: " << description << '\n';
 }
 
-void render(GLFWwindow* window);
-
-void windowRefreshCallback(GLFWwindow* window)
-{
-    render(window);
-    glfwSwapBuffers(window);
-}
-
 void APIENTRY glDebugOutput(
     GLenum source,
     GLenum type,
@@ -315,6 +307,8 @@ void render(GLFWwindow* window)
     glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &identity[0][0]);
     glBindVertexArray(rd.lineSegmentsVao);
     glDrawArrays(GL_LINES, 0, rd.numLineSegmentVerts);
+
+    glfwSwapBuffers(window);
 }
 
 struct Line
@@ -409,7 +403,7 @@ int main()
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }
 
-    glfwSetWindowRefreshCallback(window, windowRefreshCallback);
+    glfwSetWindowRefreshCallback(window, render);
 
     // Ball's radius is 1.0f, everything is measured relative to that
 
@@ -536,7 +530,6 @@ int main()
 
         update(scene, dt, input);
         render(window);
-        glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
