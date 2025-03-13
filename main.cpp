@@ -1,3 +1,5 @@
+#include "Shader.h"
+
 #include <glm/glm.hpp> // for glm types
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
 #include <glm/ext/scalar_constants.hpp> // for glm::pi()
@@ -78,31 +80,12 @@ GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
     GLint success{};
     GLchar infoLog[512];
 
-    const GLuint vs{ glCreateShader(GL_VERTEX_SHADER) };
-    glShaderSource(vs, 1, &vertexCode, nullptr);
-    glCompileShader(vs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
-    }
-
-    const GLuint fs{ glCreateShader(GL_FRAGMENT_SHADER) };
-    glShaderSource(fs, 1, &fragmentCode, nullptr);
-    glCompileShader(fs);
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
-    }
+    const Shader vs{ GL_VERTEX_SHADER, vertexCode };
+    const Shader fs{ GL_FRAGMENT_SHADER, fragmentCode };
 
     const GLuint program{ glCreateProgram() };
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
+    glAttachShader(program, vs.id);
+    glAttachShader(program, fs.id);
     glLinkProgram(program);
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success)
@@ -111,9 +94,6 @@ GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
         std::cerr << "Program link error:\n" << infoLog << '\n';
         std::exit(EXIT_FAILURE);
     }
-
-    glDeleteShader(fs);
-    glDeleteShader(vs);
 
     return program;
 }
