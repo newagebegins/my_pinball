@@ -1,4 +1,4 @@
-#include "Shader.h"
+#include "ShaderProgram.h"
 
 #include <glm/glm.hpp> // for glm types
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
@@ -73,29 +73,6 @@ void APIENTRY glDebugOutput(
     default:                             std::cerr << "Severity: ???"; break;
     }
     std::cerr << "\n\n";
-}
-
-GLuint createShaderProgram(const GLchar* vertexCode, const GLchar* fragmentCode)
-{
-    GLint success{};
-    GLchar infoLog[512];
-
-    const Shader vs{ GL_VERTEX_SHADER, vertexCode };
-    const Shader fs{ GL_FRAGMENT_SHADER, fragmentCode };
-
-    const GLuint program{ glCreateProgram() };
-    glAttachShader(program, vs.id);
-    glAttachShader(program, fs.id);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Program link error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
-    }
-
-    return program;
 }
 
 struct Circle
@@ -422,7 +399,8 @@ int main()
 
     addLine(scene.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
-    rd.program = createShaderProgram(vertexCode, fragmentCode);
+    ShaderProgram prog{ vertexCode, fragmentCode };
+    rd.program = prog.id;
     rd.modelLoc = glGetUniformLocation(rd.program, "model");
     rd.viewLoc = glGetUniformLocation(rd.program, "view");
     rd.projectionLoc = glGetUniformLocation(rd.program, "projection");
