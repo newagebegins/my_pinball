@@ -3,6 +3,7 @@
 #include "DefaultShader.h"
 #include "Flipper.h"
 #include "FlipperRenderer.h"
+#include "LineSegmentRenderer.h"
 
 #include <glm/glm.hpp> // for glm types
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
@@ -111,17 +112,10 @@ constexpr float worldR{ 35.0f };
 constexpr float worldT{ 70.0f };
 constexpr float worldB{ 0.0f };
 
-struct RenderData
-{
-    GLuint lineSegmentsVao;
-    int numLineSegmentVerts;
-};
-
-RenderData rd{};
-
 DefaultShader* defShader{};
 CircleRenderer* circleRenderer{};
 FlipperRenderer* flipperRenderer{};
+LineSegmentRenderer* lineSegmentRenderer{};
 
 void render(GLFWwindow* window)
 {
@@ -158,9 +152,7 @@ void render(GLFWwindow* window)
         flipperRenderer->render(flipper, defShader);
     }
 
-    defShader->setModel(identity);
-    glBindVertexArray(rd.lineSegmentsVao);
-    glDrawArrays(GL_LINES, 0, rd.numLineSegmentVerts);
+    lineSegmentRenderer->render(defShader);
 
     glfwSwapBuffers(window);
 }
@@ -284,12 +276,7 @@ int main()
     defShader = new DefaultShader();
     circleRenderer = new CircleRenderer();
     flipperRenderer = new FlipperRenderer();
-
-    // Create line segments VAO
-    {
-        rd.lineSegmentsVao = DefaultShader::createVao(scene.lines);
-        rd.numLineSegmentVerts = static_cast<int>(scene.lines.size());
-    }
+    lineSegmentRenderer = new LineSegmentRenderer(scene.lines);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -319,6 +306,7 @@ int main()
         glfwPollEvents();
     }
 
+    delete lineSegmentRenderer;
     delete flipperRenderer;
     delete circleRenderer;
     delete defShader;
