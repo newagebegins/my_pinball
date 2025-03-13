@@ -90,10 +90,10 @@ void addMirroredLines(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
 
 Scene scene{};
 
-constexpr float l{ -35.0f };
-constexpr float r{ 35.0f };
-constexpr float t{ 70.0f };
-constexpr float b{ 0.0f };
+constexpr float worldL{ -35.0f };
+constexpr float worldR{ 35.0f };
+constexpr float worldT{ 70.0f };
+constexpr float worldB{ 0.0f };
 
 DefaultShader* m_defShader{};
 CircleRenderer* m_circleRenderer{};
@@ -111,7 +111,7 @@ void render(GLFWwindow* window)
 
     //constexpr float zoom{ 70.0f };
     //const glm::mat4 projection{ glm::ortho(-1.0f * zoom, 1.0f * zoom, -1.0f * zoom, 1.0f * zoom, -1.0f, 1.0f) };
-    const glm::mat4 projection{ glm::ortho(l, r, b, t, -1.0f, 1.0f) };
+    const glm::mat4 projection{ glm::ortho(worldL, worldR, worldB, worldT, -1.0f, 1.0f) };
 
     m_defShader->use();
     m_defShader->setView(view);
@@ -207,13 +207,13 @@ int main()
         constexpr float d{ 1.0f };
 
         // bottom
-        addLine(scene.lines, { l+d, b+d }, { r-d, b+d });
+        addLine(scene.lines, { worldL+d, worldB+d }, { worldR-d, worldB+d });
         // top
-        addLine(scene.lines, { l+d, t-d }, { r-d, t-d });
+        addLine(scene.lines, { worldL+d, worldT-d }, { worldR-d, worldT-d });
         // left
-        addLine(scene.lines, { l+d, b+d }, { l+d, t-d });
+        addLine(scene.lines, { worldL+d, worldB+d }, { worldL+d, worldT-d });
         // right
-        addLine(scene.lines, { r-d, b+d }, { r-d, t-d });
+        addLine(scene.lines, { worldR-d, worldB+d }, { worldR-d, worldT-d });
     }
 
     m_defShader = new DefaultShader{};
