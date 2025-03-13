@@ -15,6 +15,7 @@ add_subdirectory(deps/glad)
 add_subdirectory(deps/glm)
 
 add_executable(my_pinball
+  CircleRenderer.cpp
   DefaultShader.cpp
   main.cpp
   Shader.cpp

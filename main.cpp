@@ -1,3 +1,5 @@
+#include "Circle.h"
+#include "CircleRenderer.h"
 #include "DefaultShader.h"
 
 #include <glm/glm.hpp> // for glm types
@@ -74,12 +76,6 @@ void APIENTRY glDebugOutput(
     }
     std::cerr << "\n\n";
 }
-
-struct Circle
-{
-    glm::vec2 center;
-    float radius;
-};
 
 class Flipper
 {
@@ -169,15 +165,12 @@ constexpr float worldR{ 35.0f };
 constexpr float worldT{ 70.0f };
 constexpr float worldB{ 0.0f };
 
-constexpr int circleNumVerts{ 32 };
-
 static constexpr int numCircleSegments1{ 16 };
 static constexpr int numCircleSegments2{ 8 };
 static constexpr int flipperNumVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
 
 struct RenderData
 {
-    GLuint circleVao;
     GLuint flipperVao;
 
     GLuint lineSegmentsVao;
@@ -187,6 +180,7 @@ struct RenderData
 RenderData rd{};
 
 DefaultShader* defShader{};
+CircleRenderer* circleRenderer{};
 
 void render(GLFWwindow* window)
 {
@@ -216,14 +210,7 @@ void render(GLFWwindow* window)
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    {
-        glm::mat3 model{ 1.0f };
-        model = glm::translate(model, scene.circle.center);
-        model = glm::scale(model, glm::vec2{ scene.circle.radius });
-        glBindVertexArray(rd.circleVao);
-        defShader->setModel(model);
-        glDrawArrays(GL_LINE_LOOP, 0, circleNumVerts);
-    }
+    circleRenderer->render(scene.circle, defShader);
 
     for (const auto& flipper : scene.flippers)
     {
@@ -356,20 +343,7 @@ int main()
     addLine(scene.lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 
     defShader = new DefaultShader();
-
-    // Create circle VAO
-    {
-        std::vector<glm::vec2> verts(circleNumVerts);
-
-        for (std::size_t i{ 0 }; i < circleNumVerts; ++i)
-        {
-            const float t{ static_cast<float>(i) / circleNumVerts };
-            const float angle{ t * 2.0f * glm::pi<float>() };
-            verts[i] = { std::cos(angle), std::sin(angle) };
-        }
-
-        rd.circleVao = DefaultShader::createVao(verts);
-    }
+    circleRenderer = new CircleRenderer();
 
     // Create flipper VAO
     {
@@ -439,6 +413,7 @@ int main()
         glfwPollEvents();
     }
 
+    delete circleRenderer;
     delete defShader;
 
     return EXIT_SUCCESS;
