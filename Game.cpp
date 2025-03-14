@@ -37,6 +37,7 @@ struct Line
 
 constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
+constexpr glm::vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
 void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
 {
@@ -72,11 +73,11 @@ glm::vec2 findIntersection(Line L1, Line L2)
     return L1.p + L1.d * t1;
 }
 
-void addLine(std::vector<DefaultVertex>& verts, const Line& l)
+void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color = auxCol)
 {
     constexpr float len{ 100.0f };
-    verts.push_back({l.p + l.d*len, auxCol});
-    verts.push_back({l.p - l.d*len, auxCol});
+    verts.push_back({l.p + l.d*len, color});
+    verts.push_back({l.p - l.d*len, color});
 }
 
 Game::Game()
@@ -111,6 +112,20 @@ Game::Game()
 
         Line l3{ l1.parallel(4.0f) };
         addLine(lines, l3);
+
+        Line l4{ Line::vertical(-flipperX - 4.5f) };
+        addLine(lines, l4);
+
+        Line worldB{ Line::horizontal(Constants::worldB) };
+        
+        const glm::vec2 p3{ findIntersection(l4, worldB) };
+        const glm::vec2 p4{ findIntersection(l2, l4) };
+        const glm::vec2 p5{ findIntersection(l2, l3) };
+        const glm::vec2 p6{ p5.x, p5.y + 14.0f };
+
+        addMirroredLineSegments(lines, p3, p4);
+        addMirroredLineSegments(lines, p4, p5);
+        addMirroredLineSegments(lines, p5, p6);
     }
 
     // Draw a border that represents the gameplay area
