@@ -37,7 +37,7 @@ struct Line
 
 constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
-constexpr glm::vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
+[[maybe_unused]] constexpr glm::vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
 void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
 {
