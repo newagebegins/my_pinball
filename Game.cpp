@@ -45,13 +45,13 @@ void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p
     verts.push_back({p1, defCol});
 }
 
-void addMirroredLineSegments(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
+void addMirroredLineSegments(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, glm::vec3 color = defCol)
 {
-    verts.push_back({p0, defCol});
-    verts.push_back({p1, defCol});
+    verts.push_back({p0, color});
+    verts.push_back({p1, color});
 
-    verts.push_back({{-p0.x, p0.y}, defCol});
-    verts.push_back({{-p1.x, p1.y}, defCol});
+    verts.push_back({{-p0.x, p0.y}, color});
+    verts.push_back({{-p1.x, p1.y}, color});
 }
 
 glm::vec2 findIntersection(Line L1, Line L2)
@@ -92,41 +92,39 @@ Game::Game()
     flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
     flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
 
+    const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+
+    Line l0{ p0, Flipper::minAngle };
+    Line l1{ Line::vertical(-flipperX - 9.0f) };
+    addLine(lines, l0);
+    addLine(lines, l1);
+
+    const glm::vec2 p1{ findIntersection(l0, l1) };
+    const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
+
     // Angled wall right near the flipper
-    {
-        const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+    addMirroredLineSegments(lines, p0, p1);
+    addMirroredLineSegments(lines, p1, p2);
 
-        Line l0{ p0, Flipper::minAngle };
-        Line l1{ Line::vertical(-flipperX - 9.0f) };
-        addLine(lines, l0);
-        addLine(lines, l1);
+    Line l2{ l0.parallel(-5.0f) };
+    addLine(lines, l2);
 
-        const glm::vec2 p1{ findIntersection(l0, l1) };
+    Line l3{ l1.parallel(4.0f) };
+    addLine(lines, l3);
 
-        addMirroredLineSegments(lines, p0, p1);
-        const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
-        addMirroredLineSegments(lines, p1, p2);
+    Line l4{ Line::vertical(-flipperX - 4.5f) };
+    addLine(lines, l4);
 
-        Line l2{ l0.parallel(-5.0f) };
-        addLine(lines, l2);
+    Line worldB{ Line::horizontal(Constants::worldB) };
+    
+    const glm::vec2 p3{ findIntersection(l4, worldB) };
+    const glm::vec2 p4{ findIntersection(l2, l4) };
+    const glm::vec2 p5{ findIntersection(l2, l3) };
+    const glm::vec2 p6{ p5.x, p5.y + 14.0f };
 
-        Line l3{ l1.parallel(4.0f) };
-        addLine(lines, l3);
-
-        Line l4{ Line::vertical(-flipperX - 4.5f) };
-        addLine(lines, l4);
-
-        Line worldB{ Line::horizontal(Constants::worldB) };
-        
-        const glm::vec2 p3{ findIntersection(l4, worldB) };
-        const glm::vec2 p4{ findIntersection(l2, l4) };
-        const glm::vec2 p5{ findIntersection(l2, l3) };
-        const glm::vec2 p6{ p5.x, p5.y + 14.0f };
-
-        addMirroredLineSegments(lines, p3, p4);
-        addMirroredLineSegments(lines, p4, p5);
-        addMirroredLineSegments(lines, p5, p6);
-    }
+    addMirroredLineSegments(lines, p3, p4);
+    addMirroredLineSegments(lines, p4, p5);
+    addMirroredLineSegments(lines, p5, p6);
 
     // Draw a border that represents the gameplay area
     {
