@@ -20,7 +20,10 @@ void Renderer::render(const Game& game) const
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    m_circleRenderer.render(game.circle, m_defShader);
+    for (const auto& c : game.circles)
+    {
+        m_circleRenderer.render(c, m_defShader);
+    }
 
     for (const auto& flipper : game.flippers)
     {

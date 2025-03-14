@@ -84,7 +84,7 @@ Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
 
-    circle = { {0.0f, 10.0f}, 1.0f };
+    circles.push_back({ {0.0f, 10.0f}, 1.0f });
 
     constexpr float flipperX{ 10.0f };
     constexpr float flipperY{ 7.0f };
@@ -158,6 +158,12 @@ Game::Game()
         // right
         addLine(lines, Line::vertical(Constants::worldR - d));
     }
+
+    glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
+    addCirc(p6);
+    addCirc(p7);
+
+    addCirc(p6, p7, 60.0f);
 }
 
 void Game::update(float dt, std::uint8_t input)
@@ -184,4 +190,19 @@ void Game::update(float dt, std::uint8_t input)
     {
         flipper.update(dt);
     }
+}
+
+void Game::addCirc(glm::vec2 p)
+{
+    circles.push_back({p, 0.5f});
+}
+
+void Game::addCirc(glm::vec2 p1, glm::vec2 p2, float r)
+{
+    glm::vec2 p3{ (p1 + p2) / 2.0f };
+    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
+    float m{ glm::length(p3-p1) };
+    float l{ std::sqrt(r*r - m*m) };
+    glm::vec2 c{p3 + L*l};
+    circles.push_back({c, r});
 }

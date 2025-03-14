@@ -5,7 +5,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_transform_2d.hpp>
 
-constexpr int numVerts{ 32 };
+constexpr int numVerts{ 64 };
 
 static std::vector<DefaultVertex> makeVerts()
 {
