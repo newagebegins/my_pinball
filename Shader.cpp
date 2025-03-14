@@ -25,7 +25,7 @@ Shader::Shader(GLenum type, const char* path)
         {
             case GL_VERTEX_SHADER:   std::cerr << "Vertex"; break;
             case GL_FRAGMENT_SHADER: std::cerr << "Fragment"; break;
-            default: assert(!"Unreachable"); break;
+            default:                 std::cerr << "???"; break;
         }
         std::cerr << " shader error:\n" << infoLog << '\n';
         std::exit(EXIT_FAILURE);
