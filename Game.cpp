@@ -3,7 +3,7 @@
 #include "Constants.h"
 
 constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
-constexpr glm::vec3 auxCol{ 0.3f, 0.3f, 0.3f };
+constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 
 void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
 {
