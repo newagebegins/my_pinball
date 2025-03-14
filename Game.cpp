@@ -122,6 +122,7 @@ Game::Game()
     const glm::vec2 p5{ findIntersection(l2, l3) };
     const glm::vec2 p6{ p5.x, p5.y + 14.0f };
 
+    // Outer wall near the flipper
     addMirroredLineSegments(lines, p3, p4);
     addMirroredLineSegments(lines, p4, p5);
     addMirroredLineSegments(lines, p5, p6);
