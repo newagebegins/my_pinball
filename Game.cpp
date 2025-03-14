@@ -2,6 +2,28 @@
 
 #include "Constants.h"
 
+struct Line
+{
+    glm::vec2 p; // point on the line
+    glm::vec2 d; // direction
+
+    Line(glm::vec2 P, glm::vec2 D) : p{P}, d{D}
+    {}
+
+    Line(glm::vec2 P, float a) : p{P}, d{ std::cos(a), std::sin(a) }
+    {}
+
+    static Line vertical(float x)
+    {
+        return {{x, 0.0f}, {0.0f, 1.0f}};
+    }
+
+    static Line horizontal(float y)
+    {
+        return {{0.0f, y}, {1.0f, 0.0f}};
+    }
+};
+
 constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 
@@ -20,11 +42,24 @@ void addMirroredLineSegments(std::vector<DefaultVertex>& verts, glm::vec2 p0, gl
     verts.push_back({{-p1.x, p1.y}, defCol});
 }
 
-struct Line
+glm::vec2 findIntersection(Line L1, Line L2)
 {
-    glm::vec2 p; // point on the line
-    glm::vec2 d; // direction
-};
+    const float p1x{ L1.p.x };
+    const float p1y{ L1.p.y };
+    const float d1x{ L1.d.x };
+    const float d1y{ L1.d.y };
+
+    const float p2x{ L2.p.x };
+    const float p2y{ L2.p.y };
+    const float d2x{ L2.d.x };
+    const float d2y{ L2.d.y };
+
+    const float num{ d2x*(p2y - p1y) + d2y*(p1x - p2x)};
+    const float denom{ d1y*d2x - d2y*d1x };
+    const float t1{ num / denom };
+
+    return L1.p + L1.d * t1;
+}
 
 void addLine(std::vector<DefaultVertex>& verts, const Line& l)
 {
@@ -47,10 +82,15 @@ Game::Game()
 
     // Angled wall right near the flipper
     {
-        constexpr float angle{ glm::radians(180.0f) + Flipper::minAngle };
-        constexpr float width{ 11.0f };
         const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-        const glm::vec2 p1{ p0 + glm::vec2{std::cos(angle), std::sin(angle)} * width };
+
+        Line l0{ p0, Flipper::minAngle };
+        Line l1{ Line::vertical(-flipperX - 9.0f) };
+        // addLine(lines, l0);
+        // addLine(lines, l1);
+
+        const glm::vec2 p1{ findIntersection(l0, l1) };
+
         addMirroredLineSegments(lines, p0, p1);
         const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
         addMirroredLineSegments(lines, p1, p2);
@@ -59,18 +99,15 @@ Game::Game()
     // Draw a border that represents the gameplay area
     {
         constexpr float d{ 0.1f };
-
         // bottom
-        addLineSegment(lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldB+d });
+        addLine(lines, Line::horizontal(Constants::worldB + d));
         // top
-        addLineSegment(lines, { Constants::worldL+d, Constants::worldT-d }, { Constants::worldR-d, Constants::worldT-d });
+        addLine(lines, Line::horizontal(Constants::worldT - d));
         // left
-        addLineSegment(lines, { Constants::worldL+d, Constants::worldB+d }, { Constants::worldL+d, Constants::worldT-d });
+        addLine(lines, Line::vertical(Constants::worldL + d));
         // right
-        addLineSegment(lines, { Constants::worldR-d, Constants::worldB+d }, { Constants::worldR-d, Constants::worldT-d });
+        addLine(lines, Line::vertical(Constants::worldR - d));
     }
-
-    addLine(lines, { { 0.0f, 0.0f }, { 0.5f, 0.5f }});
 }
 
 void Game::update(float dt, std::uint8_t input)
