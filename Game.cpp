@@ -2,6 +2,11 @@
 
 #include "Constants.h"
 
+glm::vec2 perp(glm::vec2 v)
+{
+    return {-v.y, v.x};
+}
+
 struct Line
 {
     glm::vec2 p; // point on the line
@@ -12,6 +17,12 @@ struct Line
 
     Line(glm::vec2 P, float a) : p{P}, d{ std::cos(a), std::sin(a) }
     {}
+
+    Line parallel(float offset)
+    {
+        glm::vec2 n{ perp(d) };
+        return {{p + n*offset}, d};
+    }
 
     static Line vertical(float x)
     {
@@ -86,14 +97,20 @@ Game::Game()
 
         Line l0{ p0, Flipper::minAngle };
         Line l1{ Line::vertical(-flipperX - 9.0f) };
-        // addLine(lines, l0);
-        // addLine(lines, l1);
+        addLine(lines, l0);
+        addLine(lines, l1);
 
         const glm::vec2 p1{ findIntersection(l0, l1) };
 
         addMirroredLineSegments(lines, p0, p1);
         const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
         addMirroredLineSegments(lines, p1, p2);
+
+        Line l2{ l0.parallel(-5.0f) };
+        addLine(lines, l2);
+
+        Line l3{ l1.parallel(4.0f) };
+        addLine(lines, l3);
     }
 
     // Draw a border that represents the gameplay area
