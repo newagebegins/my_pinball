@@ -1,6 +1,6 @@
 #include "LineSegmentRenderer.h"
 
-LineSegmentRenderer::LineSegmentRenderer(const std::vector<glm::vec2>& verts)
+LineSegmentRenderer::LineSegmentRenderer(const std::vector<DefaultVertex>& verts)
     : m_vao{ DefaultShader::createVao(verts) }
     , m_numVerts{ static_cast<int>(verts.size()) }
 {}

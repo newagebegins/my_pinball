@@ -7,15 +7,18 @@
 
 constexpr int numVerts{ 32 };
 
-static std::vector<glm::vec2> makeVerts()
+static std::vector<DefaultVertex> makeVerts()
 {
-    std::vector<glm::vec2> verts(numVerts);
+    std::vector<DefaultVertex> verts(numVerts);
 
     for (std::size_t i{ 0 }; i < numVerts; ++i)
     {
         const float t{ static_cast<float>(i) / numVerts };
         const float angle{ t * 2.0f * glm::pi<float>() };
-        verts[i] = { std::cos(angle), std::sin(angle) };
+        verts[i] = {
+            { std::cos(angle), std::sin(angle) },
+            { 1.0f, 1.0f, 1.0f },
+        };
     }
 
     return verts;

@@ -10,7 +10,7 @@
 class Renderer
 {
 public:
-    Renderer(const std::vector<glm::vec2>& verts);
+    Renderer(const std::vector<DefaultVertex>& verts);
     Renderer(const Renderer&) = delete;
     void render(const Game& game) const;
 private:

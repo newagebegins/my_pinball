@@ -2,19 +2,22 @@
 
 #include "Constants.h"
 
-void addLineSegment(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
+constexpr glm::vec3 auxCol{ 0.3f, 0.3f, 0.3f };
+
+void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
 {
-    verts.push_back(p0);
-    verts.push_back(p1);
+    verts.push_back({p0, defCol});
+    verts.push_back({p1, defCol});
 }
 
-void addMirroredLineSegments(std::vector<glm::vec2>& verts, glm::vec2 p0, glm::vec2 p1)
+void addMirroredLineSegments(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
 {
-    verts.push_back(p0);
-    verts.push_back(p1);
+    verts.push_back({p0, defCol});
+    verts.push_back({p1, defCol});
 
-    verts.emplace_back(-p0.x, p0.y);
-    verts.emplace_back(-p1.x, p1.y);
+    verts.push_back({{-p0.x, p0.y}, defCol});
+    verts.push_back({{-p1.x, p1.y}, defCol});
 }
 
 struct Line
@@ -23,11 +26,11 @@ struct Line
     glm::vec2 d; // direction
 };
 
-void addLine(std::vector<glm::vec2>& verts, const Line& l)
+void addLine(std::vector<DefaultVertex>& verts, const Line& l)
 {
     constexpr float len{ 100.0f };
-    verts.push_back(l.p + l.d*len);
-    verts.push_back(l.p - l.d*len);
+    verts.push_back({l.p + l.d*len, auxCol});
+    verts.push_back({l.p - l.d*len, auxCol});
 }
 
 Game::Game()

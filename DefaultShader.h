@@ -1,6 +1,7 @@
 #ifndef DEFAULT_SHADER_H
 #define DEFAULT_SHADER_H
 
+#include "DefaultVertex.h"
 #include "ShaderProgram.h"
 
 #include <glad/glad.h>
@@ -11,7 +12,7 @@
 class DefaultShader
 {
 public:
-    static GLuint createVao(const std::vector<glm::vec2>& verts);
+    static GLuint createVao(const std::vector<DefaultVertex>& verts);
 
     DefaultShader();
     DefaultShader(const DefaultShader&) = delete;

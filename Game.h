@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "Circle.h"
+#include "DefaultVertex.h"
 #include "Flipper.h"
 
 #include <glm/glm.hpp>
@@ -15,7 +16,7 @@ struct Game
 {
     Circle circle{};
     std::vector<Flipper> flippers{};
-    std::vector<glm::vec2> lines{};
+    std::vector<DefaultVertex> lines{};
 
     Game();
     void update(float dt, std::uint8_t input);

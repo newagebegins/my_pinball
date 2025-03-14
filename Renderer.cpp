@@ -4,7 +4,7 @@
 
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
 
-Renderer::Renderer(const std::vector<glm::vec2>& verts)
+Renderer::Renderer(const std::vector<DefaultVertex>& verts)
     : m_lineSegmentRenderer{ verts }
 {
     const glm::mat3 identity{ 1.0f };
