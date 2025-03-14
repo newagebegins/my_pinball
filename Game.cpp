@@ -127,6 +127,25 @@ Game::Game()
     addMirroredLineSegments(lines, p4, p5);
     addMirroredLineSegments(lines, p5, p6);
 
+    //
+    // Slingshot
+    //
+
+    Line sL{ l1.parallel(-3.0f) };
+    addLine(lines, sL);
+    Line sB{ l0.parallel(3.5f) };
+    addLine(lines, sB);
+    glm::vec2 sLB{ findIntersection(sL, sB) };
+    Line sLB1{ sLB, glm::radians(109.0f) };
+    // addLine(lines, sLB1, highlightCol);
+    Line sR{ sLB1.parallel(-4.0f) };
+    addLine(lines, sR);
+    glm::vec2 sRB{ findIntersection(sR, sB) };
+    glm::vec2 sLR{ findIntersection(sL, sR) };
+    addMirroredLineSegments(lines, sRB, sLB);
+    addMirroredLineSegments(lines, sLB, sLR);
+    addMirroredLineSegments(lines, sLR, sRB);
+
     // Draw a border that represents the gameplay area
     {
         constexpr float d{ 0.1f };
