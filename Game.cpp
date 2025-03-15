@@ -76,6 +76,26 @@ void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color =
     verts.push_back({l.p - l.d*len, color});
 }
 
+// P - intersection of two lines
+// d1 - direction of the line to the left of the circle (from intersection towards circle, unit)
+// d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
+// r - radius of the circle
+// returns the position of the circle
+glm::vec2 findCircleBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+{
+    glm::vec2 d1p = perp(d1);
+    glm::vec2 d2p = perp(d2);
+    float t = r * glm::length(d1p + d2p) / glm::length(d1 - d2);
+    glm::vec2 O = P + d1*t - d1p*r;
+    return O;
+}
+
+void Game::addSlingshotCircle(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+{
+    glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
+    circles.push_back({ O, r });
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -142,6 +162,10 @@ Game::Game()
     addMirroredLineSegments(lines, sLB, sLR);
     addMirroredLineSegments(lines, sLR, sRB);
 
+    addSlingshotCircle(sRB, -sB.d, sR.d, 0.5f);
+    addSlingshotCircle(sLR, -sR.d, -sL.d, 0.5f);
+    addSlingshotCircle(sLB, sL.d, sB.d, 1.0f);
+
     // Draw a border that represents the gameplay area
     {
         constexpr float d{ 0.1f };
@@ -156,8 +180,8 @@ Game::Game()
     }
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
-    addCirc(p6);
-    addCirc(p7);
+    //addCirc(p6);
+    //addCirc(p7);
 
     //addCirc(p6, p7, 60.0f);
     addArc(p6, p7, 60.0f);
@@ -194,6 +218,7 @@ void Game::addCirc(glm::vec2 p)
     circles.push_back({p, 0.5f});
 }
 
+// Circle through 2 points with the given radius
 void Game::addCirc(glm::vec2 p1, glm::vec2 p2, float r)
 {
     glm::vec2 p3{ (p1 + p2) / 2.0f };
