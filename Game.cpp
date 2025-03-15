@@ -76,6 +76,33 @@ void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color =
     verts.push_back({l.p - l.d*len, color});
 }
 
+void addCircleLines(std::vector<DefaultVertex>& verts, Circle c)
+{
+    constexpr int numVerts{ 32 };
+    glm::vec3 color{ 1.0f, 1.0f, 1.0f };
+
+    DefaultVertex v0{
+        c.center + glm::vec2{ 1.0f, 0.0f } * c.radius,
+        color,
+    };
+
+    verts.push_back(v0);
+
+    for (std::size_t i{ 1 }; i < numVerts; ++i)
+    {
+        const float t{ static_cast<float>(i) / numVerts };
+        const float angle{ t * twoPi };
+        const DefaultVertex v {
+            c.center + glm::vec2{ std::cos(angle), std::sin(angle) } * c.radius,
+            color,
+        };
+        verts.push_back(v);
+        verts.push_back(v);
+    }
+
+    verts.push_back(v0);
+}
+
 // P - intersection of two lines
 // d1 - direction of the line to the left of the circle (from intersection towards circle, unit)
 // d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
@@ -93,7 +120,8 @@ glm::vec2 findCircleBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float 
 void Game::addSlingshotCircle(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 {
     glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
-    circles.push_back({ O, r });
+    Circle c{ O, r };
+    addCircleLines(lines, c);
 }
 
 Game::Game()
@@ -180,10 +208,7 @@ Game::Game()
     }
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
-    //addCirc(p6);
-    //addCirc(p7);
 
-    //addCirc(p6, p7, 60.0f);
     addArc(p6, p7, 10.0f);
 }
 
@@ -213,20 +238,15 @@ void Game::update(float dt, std::uint8_t input)
     }
 }
 
-void Game::addCirc(glm::vec2 p)
-{
-    circles.push_back({p, 0.5f});
-}
-
 // Circle through 2 points with the given radius
-void Game::addCirc(glm::vec2 p1, glm::vec2 p2, float r)
+Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
 {
     glm::vec2 p3{ (p1 + p2) / 2.0f };
     glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
     float m{ glm::length(p3-p1) };
     float l{ std::sqrt(r*r - m*m) };
     glm::vec2 c{p3 + L*l};
-    circles.push_back({c, r});
+    return {c, r};
 }
 
 float getAngle(glm::vec2 v)
