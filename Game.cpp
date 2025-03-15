@@ -184,7 +184,7 @@ Game::Game()
     //addCirc(p7);
 
     //addCirc(p6, p7, 60.0f);
-    addArc(p6, p7, 60.0f);
+    addArc(p6, p7, 10.0f);
 }
 
 void Game::update(float dt, std::uint8_t input)
