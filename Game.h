@@ -22,7 +22,6 @@ struct Game
     Game();
     void update(float dt, std::uint8_t input);
 private:
-    void addArc(glm::vec2 p1, glm::vec2 p2, float r);
     void addSlingshotCircle(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r);
 };
 

@@ -124,6 +124,56 @@ void Game::addSlingshotCircle(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
     addCircleLines(lines, c);
 }
 
+void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
+{
+    float start{ arc.start };
+    float end{ arc.end };
+    if (arc.end < arc.start)
+    {
+        end += twoPi;
+    }
+
+    verts.push_back({{
+        arc.p.x + std::cos(start) * arc.r,
+        arc.p.y + std::sin(start) * arc.r,
+    }, color});
+
+    for (int i{ 1 }; i < numSteps; ++i)
+    {
+        const float t{ static_cast<float>(i) / numSteps };
+        const float angle{ glm::mix(start, end, t) };
+        float x = arc.p.x + std::cos(angle) * arc.r;
+        float y = arc.p.y + std::sin(angle) * arc.r;
+        verts.push_back({{x,y}, color});
+        verts.push_back({{x,y}, color});
+    }
+
+    verts.push_back({{
+        arc.p.x + std::cos(end) * arc.r,
+        arc.p.y + std::sin(end) * arc.r,
+    }, color});
+}
+
+float getAngle(glm::vec2 v)
+{
+    float a = std::atan2(v.y, v.x);
+    if (a < 0) a += twoPi;
+    return a;
+}
+
+// Circular through 2 points
+Arc makeArc(glm::vec2 p1, glm::vec2 p2, float r)
+{
+    glm::vec2 p3{ (p1 + p2) / 2.0f };
+    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
+    float m{ glm::length(p3-p1) };
+    float l{ std::sqrt(r*r - m*m) };
+    glm::vec2 c{p3 + L*l};
+    float start{ getAngle(p2 - c) };
+    float end{ getAngle(p1 - c) };
+    return {c, r, start, end};
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -209,7 +259,7 @@ Game::Game()
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
-    addArc(p6, p7, 10.0f);
+    addArcLines(lines, makeArc(p6, p7, 10.0f));
 }
 
 void Game::update(float dt, std::uint8_t input)
@@ -247,54 +297,4 @@ Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
     float l{ std::sqrt(r*r - m*m) };
     glm::vec2 c{p3 + L*l};
     return {c, r};
-}
-
-float getAngle(glm::vec2 v)
-{
-    float a = std::atan2(v.y, v.x);
-    if (a < 0) a += twoPi;
-    return a;
-}
-
-void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
-{
-    float start{ arc.start };
-    float end{ arc.end };
-    if (arc.end < arc.start)
-    {
-        end += twoPi;
-    }
-
-    verts.push_back({{
-        arc.p.x + std::cos(start) * arc.r,
-        arc.p.y + std::sin(start) * arc.r,
-    }, color});
-
-    for (int i{ 1 }; i < numSteps; ++i)
-    {
-        const float t{ static_cast<float>(i) / numSteps };
-        const float angle{ glm::mix(start, end, t) };
-        float x = arc.p.x + std::cos(angle) * arc.r;
-        float y = arc.p.y + std::sin(angle) * arc.r;
-        verts.push_back({{x,y}, color});
-        verts.push_back({{x,y}, color});
-    }
-
-    verts.push_back({{
-        arc.p.x + std::cos(end) * arc.r,
-        arc.p.y + std::sin(end) * arc.r,
-    }, color});
-}
-
-void Game::addArc(glm::vec2 p1, glm::vec2 p2, float r)
-{
-    glm::vec2 p3{ (p1 + p2) / 2.0f };
-    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
-    float m{ glm::length(p3-p1) };
-    float l{ std::sqrt(r*r - m*m) };
-    glm::vec2 c{p3 + L*l};
-    float start{ getAngle(p2 - c) };
-    float end{ getAngle(p1 - c) };
-    Arc arc{c, r, start, end};
-    addArcLines(lines, arc);
 }
