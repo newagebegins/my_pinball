@@ -117,13 +117,6 @@ glm::vec2 findCircleBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float 
     return O;
 }
 
-void Game::addSlingshotCircle(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
-{
-    glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
-    Circle c{ O, r };
-    addCircleLines(lines, c);
-}
-
 void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
 {
     float start{ arc.start };
@@ -172,6 +165,13 @@ Arc makeArc(glm::vec2 p1, glm::vec2 p2, float r)
     float start{ getAngle(p2 - c) };
     float end{ getAngle(p1 - c) };
     return {c, r, start, end};
+}
+
+void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+{
+    glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
+    Circle c{ O, r };
+    addCircleLines(verts, c);
 }
 
 Game::Game()
@@ -240,9 +240,9 @@ Game::Game()
     addMirroredLineSegments(lines, sLB, sLR);
     addMirroredLineSegments(lines, sLR, sRB);
 
-    addSlingshotCircle(sRB, -sB.d, sR.d, 0.8f);
-    addSlingshotCircle(sLR, -sR.d, -sL.d, 0.8f);
-    addSlingshotCircle(sLB, sL.d, sB.d, 1.0f);
+    addSlingshotCircle(lines, sRB, -sB.d, sR.d, 0.8f);
+    addSlingshotCircle(lines, sLR, -sR.d, -sL.d, 0.8f);
+    addSlingshotCircle(lines, sLB, sL.d, sB.d, 1.0f);
 
     // Draw a border that represents the gameplay area
     {
