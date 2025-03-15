@@ -162,8 +162,8 @@ Game::Game()
     addMirroredLineSegments(lines, sLB, sLR);
     addMirroredLineSegments(lines, sLR, sRB);
 
-    addSlingshotCircle(sRB, -sB.d, sR.d, 0.5f);
-    addSlingshotCircle(sLR, -sR.d, -sL.d, 0.5f);
+    addSlingshotCircle(sRB, -sB.d, sR.d, 0.8f);
+    addSlingshotCircle(sLR, -sR.d, -sL.d, 0.8f);
     addSlingshotCircle(sLB, sL.d, sB.d, 1.0f);
 
     // Draw a border that represents the gameplay area
