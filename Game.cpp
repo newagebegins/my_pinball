@@ -1,11 +1,7 @@
 #include "Game.h"
 
 #include "Constants.h"
-
-glm::vec2 perp(glm::vec2 v)
-{
-    return {-v.y, v.x};
-}
+#include "Math.h"
 
 struct Line
 {
@@ -163,7 +159,8 @@ Game::Game()
     addCirc(p6);
     addCirc(p7);
 
-    addCirc(p6, p7, 60.0f);
+    //addCirc(p6, p7, 60.0f);
+    addArc(p6, p7, 60.0f);
 }
 
 void Game::update(float dt, std::uint8_t input)
@@ -205,4 +202,23 @@ void Game::addCirc(glm::vec2 p1, glm::vec2 p2, float r)
     float l{ std::sqrt(r*r - m*m) };
     glm::vec2 c{p3 + L*l};
     circles.push_back({c, r});
+}
+
+float getAngle(glm::vec2 v)
+{
+    float a = std::atan2(v.y, v.x);
+    if (a < 0) a += twoPi;
+    return a;
+}
+
+void Game::addArc(glm::vec2 p1, glm::vec2 p2, float r)
+{
+    glm::vec2 p3{ (p1 + p2) / 2.0f };
+    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
+    float m{ glm::length(p3-p1) };
+    float l{ std::sqrt(r*r - m*m) };
+    glm::vec2 c{p3 + L*l};
+    float start{ getAngle(p2 - c) };
+    float end{ getAngle(p1 - c) };
+    arcs.push_back({c, r, start, end});
 }

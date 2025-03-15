@@ -130,7 +130,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    renderer = new Renderer(game.lines);
+    renderer = new Renderer(game);
 
     while (!glfwWindowShouldClose(window))
     {
