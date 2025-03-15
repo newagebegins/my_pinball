@@ -16,7 +16,6 @@
 struct Game
 {
     std::vector<Circle> circles{};
-    std::vector<Arc> arcs{};
     std::vector<Flipper> flippers{};
     std::vector<DefaultVertex> lines{};
 
