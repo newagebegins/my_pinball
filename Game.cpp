@@ -256,13 +256,18 @@ Game::Game()
 
     Line worldB{ Line::horizontal(Constants::worldB) };
     
+    // ditch
+    glm::vec2 pp1 = findIntersection(l1, l2);
+    Line ll1 = Line::horizontal(pp1.y - 3.0f);
+    glm::vec2 pp2 = findIntersection(l1, ll1);
+    glm::vec2 pp3 = findIntersection(ll1, l3);
+
     const glm::vec2 p3{ findIntersection(l4, worldB) };
     const glm::vec2 p4{ findIntersection(l2, l4) };
-    const glm::vec2 p5{ findIntersection(l2, l3) };
-    const glm::vec2 p6{ p5.x, p5.y + 14.2f };
+    const glm::vec2 p6{ pp3.x, pp3.y + 20.0f };
 
     // Outer wall near the flipper
-    addLineStripMirrored(lines, {p3,p4,p5,p6});
+    addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3,p6});
 
     //
     // Slingshot
