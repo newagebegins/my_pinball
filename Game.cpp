@@ -76,6 +76,20 @@ void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color =
     verts.push_back({l.p - l.d*len, color});
 }
 
+void addLineStrip(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2>& pts, float xScale = 1.0f, glm::vec3 color = defCol)
+{
+    std::size_t len = pts.size();
+    assert(len > 1);
+    verts.push_back({ {pts[0].x*xScale, pts[0].y}, color });
+    for (std::size_t i{1}; i < len-1; ++i)
+    {
+        DefaultVertex v{{pts[i].x*xScale, pts[i].y}, color};
+        verts.push_back(v);
+        verts.push_back(v);
+    }
+    verts.push_back({ {pts[len-1].x*xScale, pts[len-1].y}, color });
+}
+
 void addCircleLines(std::vector<DefaultVertex>& verts, Circle c)
 {
     constexpr int numVerts{ 32 };
@@ -159,8 +173,10 @@ ArcPoints findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
     return {Q, R};
 }
 
-void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
+std::vector<glm::vec2> getArcPoints(const Arc& arc, int numSteps = 32)
 {
+    std::vector<glm::vec2> verts{};
+
     float start{ arc.start };
     float end{ arc.end };
     if (arc.end < arc.start)
@@ -168,25 +184,29 @@ void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 co
         end += twoPi;
     }
 
-    verts.push_back({{
-        arc.p.x + std::cos(start) * arc.r,
-        arc.p.y + std::sin(start) * arc.r,
-    }, color});
-
-    for (int i{ 1 }; i < numSteps; ++i)
+    for (int i{ 0 }; i < numSteps; ++i)
     {
-        const float t{ static_cast<float>(i) / numSteps };
+        const float t{ static_cast<float>(i) / (numSteps - 1) };
         const float angle{ glm::mix(start, end, t) };
         float x = arc.p.x + std::cos(angle) * arc.r;
         float y = arc.p.y + std::sin(angle) * arc.r;
-        verts.push_back({{x,y}, color});
-        verts.push_back({{x,y}, color});
+        verts.push_back({x,y});
     }
 
-    verts.push_back({{
-        arc.p.x + std::cos(end) * arc.r,
-        arc.p.y + std::sin(end) * arc.r,
-    }, color});
+    return verts;
+}
+
+void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
+{
+    auto pts{ getArcPoints(arc, numSteps) };
+    addLineStrip(verts, pts, 1.0f, color);
+}
+
+void addArcLinesMirrored(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
+{
+    auto pts{ getArcPoints(arc, numSteps) };
+    addLineStrip(verts, pts, 1.0f, color);
+    addLineStrip(verts, pts, -1.0f, color);
 }
 
 void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
@@ -236,7 +256,7 @@ Game::Game()
     const glm::vec2 p3{ findIntersection(l4, worldB) };
     const glm::vec2 p4{ findIntersection(l2, l4) };
     const glm::vec2 p5{ findIntersection(l2, l3) };
-    const glm::vec2 p6{ p5.x, p5.y + 14.0f };
+    const glm::vec2 p6{ p5.x, p5.y + 14.2f };
 
     // Outer wall near the flipper
     addMirroredLineSegments(lines, p3, p4);
@@ -263,19 +283,19 @@ Game::Game()
     {
         float LRr = 0.8f;
         ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
-        addArcLines(lines, makeArc(apLR.pStart, apLR.pEnd, LRr));
+        addArcLinesMirrored(lines, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
 
-        float RBr = 0.8f;
+        float RBr = 0.82f;
         ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
-        addArcLines(lines, makeArc(apRB.pStart, apRB.pEnd, RBr));
+        addArcLinesMirrored(lines, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
 
         float LBr = 2.0f;
         ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
-        addArcLines(lines, makeArc(apLB.pStart, apLB.pEnd, LBr));
+        addArcLinesMirrored(lines, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
 
-        addLineSegment(lines, apLR.pStart, apRB.pEnd);
-        addLineSegment(lines, apRB.pStart, apLB.pEnd);
-        addLineSegment(lines, apLB.pStart, apLR.pEnd);
+        addMirroredLineSegments(lines, apLR.pStart, apRB.pEnd);
+        addMirroredLineSegments(lines, apRB.pStart, apLB.pEnd);
+        addMirroredLineSegments(lines, apLB.pStart, apLR.pEnd);
     }
 
     // Draw a border that represents the gameplay area
@@ -293,7 +313,7 @@ Game::Game()
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
-    addArcLines(lines, makeArc(p7, p6, 10.0f));
+    addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
 }
 
 void Game::update(float dt, std::uint8_t input)
