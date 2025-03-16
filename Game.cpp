@@ -220,6 +220,11 @@ void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec
     addCircleLines(verts, c);
 }
 
+glm::vec2 makeVec(float angle, float len)
+{
+    return { std::cos(angle) * len, std::sin(angle) * len };
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -255,7 +260,7 @@ Game::Game()
     // addLine(lines, l4);
 
     Line worldB{ Line::horizontal(Constants::worldB) };
-    
+
     // ditch
     glm::vec2 pp1 = findIntersection(l1, l2);
     Line ll1 = Line::horizontal(pp1.y - 3.0f);
@@ -329,6 +334,17 @@ Game::Game()
 
     glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
     addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
+
+    glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
+    glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
+    glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
+    glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
+    float a0 = 80.4f;
+    glm::vec2 p14 = p13 + makeVec(glm::radians(a0), 2.5f);
+    addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
+    glm::vec2 p15 = p14 + makeVec(glm::radians(a0), 3.9f);
+    // right one-way wall
+    addLineSegment(lines, p14, p15);
 }
 
 void Game::update(float dt, std::uint8_t input)
