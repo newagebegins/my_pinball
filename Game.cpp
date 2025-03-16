@@ -90,6 +90,12 @@ void addLineStrip(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2
     verts.push_back({ {pts[len-1].x*xScale, pts[len-1].y}, color });
 }
 
+void addLineStripMirrored(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2>& pts, glm::vec3 color = defCol)
+{
+    addLineStrip(verts, pts, 1.0f, color);
+    addLineStrip(verts, pts, -1.0f, color);
+}
+
 void addCircleLines(std::vector<DefaultVertex>& verts, Circle c)
 {
     constexpr int numVerts{ 32 };
@@ -204,9 +210,7 @@ void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps
 
 void addArcLinesMirrored(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
 {
-    auto pts{ getArcPoints(arc, numSteps) };
-    addLineStrip(verts, pts, 1.0f, color);
-    addLineStrip(verts, pts, -1.0f, color);
+    addLineStripMirrored(verts, getArcPoints(arc, numSteps), color);
 }
 
 void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
@@ -239,8 +243,7 @@ Game::Game()
     const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
 
     // Angled wall right near the flipper
-    addMirroredLineSegments(lines, p0, p1);
-    addMirroredLineSegments(lines, p1, p2);
+    addLineStripMirrored(lines, {p0,p1,p2});
 
     Line l2{ l0.parallel(-5.0f) };
     // addLine(lines, l2);
@@ -259,9 +262,7 @@ Game::Game()
     const glm::vec2 p6{ p5.x, p5.y + 14.2f };
 
     // Outer wall near the flipper
-    addMirroredLineSegments(lines, p3, p4);
-    addMirroredLineSegments(lines, p4, p5);
-    addMirroredLineSegments(lines, p5, p6);
+    addLineStripMirrored(lines, {p3,p4,p5,p6});
 
     //
     // Slingshot
