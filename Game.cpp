@@ -326,6 +326,9 @@ Game::Game()
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
     addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
+
+    glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
+    addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
 }
 
 void Game::update(float dt, std::uint8_t input)
