@@ -137,12 +137,18 @@ Arc makeArc(glm::vec2 pStart, glm::vec2 pEnd, float r)
     return {c, r, start, end};
 }
 
+struct ArcPoints
+{
+    glm::vec2 pStart;
+    glm::vec2 pEnd;
+};
+
 // P - intersection of two lines
 // d1 - direction of the line to the left of the circle (from intersection towards circle, unit)
 // d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
 // r - radius of the circle
 // returns the position of the circle
-Arc findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+ArcPoints findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 {
     glm::vec2 d1p = perp(d1);
     glm::vec2 d2p = perp(d2);
@@ -150,9 +156,7 @@ Arc findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
     glm::vec2 O = P + d1*t - d1p*r;
     glm::vec2 Q = P + d1*t;
     glm::vec2 R = P + d2*t;
-    float start{ getAngle(Q - O) };
-    float end{ getAngle(R - O) };
-    return {O, r, start, end};
+    return {Q, R};
 }
 
 void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
@@ -192,12 +196,6 @@ void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec
     addCircleLines(verts, c);
 }
 
-void addSlingshotArc(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
-{
-    Arc arc = findArcBetweenLines(P, d1, d2, r);
-    addArcLines(verts, arc);
-}
-
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -214,8 +212,8 @@ Game::Game()
 
     Line l0{ p0, Flipper::minAngle };
     Line l1{ Line::vertical(-flipperX - 9.0f) };
-    addLine(lines, l0);
-    addLine(lines, l1);
+    // addLine(lines, l0);
+    // addLine(lines, l1);
 
     const glm::vec2 p1{ findIntersection(l0, l1) };
     const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
@@ -225,13 +223,13 @@ Game::Game()
     addMirroredLineSegments(lines, p1, p2);
 
     Line l2{ l0.parallel(-5.0f) };
-    addLine(lines, l2);
+    // addLine(lines, l2);
 
     Line l3{ l1.parallel(4.0f) };
-    addLine(lines, l3);
+    // addLine(lines, l3);
 
     Line l4{ Line::vertical(-flipperX - 4.5f) };
-    addLine(lines, l4);
+    // addLine(lines, l4);
 
     Line worldB{ Line::horizontal(Constants::worldB) };
     
@@ -250,20 +248,35 @@ Game::Game()
     //
 
     Line sL{ l1.parallel(-3.0f) };
-    addLine(lines, sL);
+    // addLine(lines, sL);
     Line sB{ l0.parallel(3.5f) };
-    addLine(lines, sB);
+    // addLine(lines, sB);
     glm::vec2 sLB{ findIntersection(sL, sB) };
     Line sLB1{ sLB, glm::radians(109.0f) };
     // addLine(lines, sLB1, highlightCol);
     Line sR{ sLB1.parallel(-4.0f) };
-    addLine(lines, sR);
+    // addLine(lines, sR);
     glm::vec2 sRB{ findIntersection(sR, sB) };
     glm::vec2 sLR{ findIntersection(sL, sR) };
 
-    addSlingshotArc(lines, sRB, -sB.d, sR.d, 0.8f);
-    addSlingshotArc(lines, sLR, -sR.d, -sL.d, 0.8f);
-    addSlingshotArc(lines, sLB, sL.d, sB.d, 1.0f);
+    // Construct slingshot
+    {
+        float LRr = 0.8f;
+        ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
+        addArcLines(lines, makeArc(apLR.pStart, apLR.pEnd, LRr));
+
+        float RBr = 0.8f;
+        ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
+        addArcLines(lines, makeArc(apRB.pStart, apRB.pEnd, RBr));
+
+        float LBr = 2.0f;
+        ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
+        addArcLines(lines, makeArc(apLB.pStart, apLB.pEnd, LBr));
+
+        addLineSegment(lines, apLR.pStart, apRB.pEnd);
+        addLineSegment(lines, apRB.pStart, apLB.pEnd);
+        addLineSegment(lines, apLB.pStart, apLR.pEnd);
+    }
 
     // Draw a border that represents the gameplay area
     {
