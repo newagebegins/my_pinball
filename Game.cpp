@@ -117,6 +117,44 @@ glm::vec2 findCircleBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float 
     return O;
 }
 
+float getAngle(glm::vec2 v)
+{
+    float a = std::atan2(v.y, v.x);
+    if (a < 0) a += twoPi;
+    return a;
+}
+
+// Circular through 2 points
+Arc makeArc(glm::vec2 pStart, glm::vec2 pEnd, float r)
+{
+    glm::vec2 pMid{ (pStart + pEnd) / 2.0f };
+    glm::vec2 L{ -glm::normalize(perp(pStart - pEnd)) };
+    float m{ glm::length(pMid-pEnd) };
+    float l{ std::sqrt(r*r - m*m) };
+    glm::vec2 c{pMid + L*l};
+    float start{ getAngle(pStart - c) };
+    float end{ getAngle(pEnd - c) };
+    return {c, r, start, end};
+}
+
+// P - intersection of two lines
+// d1 - direction of the line to the left of the circle (from intersection towards circle, unit)
+// d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
+// r - radius of the circle
+// returns the position of the circle
+Arc findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+{
+    glm::vec2 d1p = perp(d1);
+    glm::vec2 d2p = perp(d2);
+    float t = r * glm::length(d1p + d2p) / glm::length(d1 - d2);
+    glm::vec2 O = P + d1*t - d1p*r;
+    glm::vec2 Q = P + d1*t;
+    glm::vec2 R = P + d2*t;
+    float start{ getAngle(Q - O) };
+    float end{ getAngle(R - O) };
+    return {O, r, start, end};
+}
+
 void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 color = defCol, int numSteps = 32)
 {
     float start{ arc.start };
@@ -147,31 +185,17 @@ void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, glm::vec3 co
     }, color});
 }
 
-float getAngle(glm::vec2 v)
-{
-    float a = std::atan2(v.y, v.x);
-    if (a < 0) a += twoPi;
-    return a;
-}
-
-// Circular through 2 points
-Arc makeArc(glm::vec2 p1, glm::vec2 p2, float r)
-{
-    glm::vec2 p3{ (p1 + p2) / 2.0f };
-    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
-    float m{ glm::length(p3-p1) };
-    float l{ std::sqrt(r*r - m*m) };
-    glm::vec2 c{p3 + L*l};
-    float start{ getAngle(p2 - c) };
-    float end{ getAngle(p1 - c) };
-    return {c, r, start, end};
-}
-
 void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 {
     glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
     Circle c{ O, r };
     addCircleLines(verts, c);
+}
+
+void addSlingshotArc(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+{
+    Arc arc = findArcBetweenLines(P, d1, d2, r);
+    addArcLines(verts, arc);
 }
 
 Game::Game()
@@ -236,13 +260,10 @@ Game::Game()
     addLine(lines, sR);
     glm::vec2 sRB{ findIntersection(sR, sB) };
     glm::vec2 sLR{ findIntersection(sL, sR) };
-    addMirroredLineSegments(lines, sRB, sLB);
-    addMirroredLineSegments(lines, sLB, sLR);
-    addMirroredLineSegments(lines, sLR, sRB);
 
-    addSlingshotCircle(lines, sRB, -sB.d, sR.d, 0.8f);
-    addSlingshotCircle(lines, sLR, -sR.d, -sL.d, 0.8f);
-    addSlingshotCircle(lines, sLB, sL.d, sB.d, 1.0f);
+    addSlingshotArc(lines, sRB, -sB.d, sR.d, 0.8f);
+    addSlingshotArc(lines, sLR, -sR.d, -sL.d, 0.8f);
+    addSlingshotArc(lines, sLB, sL.d, sB.d, 1.0f);
 
     // Draw a border that represents the gameplay area
     {
@@ -259,7 +280,7 @@ Game::Game()
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
-    addArcLines(lines, makeArc(p6, p7, 10.0f));
+    addArcLines(lines, makeArc(p7, p6, 10.0f));
 }
 
 void Game::update(float dt, std::uint8_t input)
