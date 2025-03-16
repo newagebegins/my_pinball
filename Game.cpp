@@ -267,7 +267,13 @@ Game::Game()
     const glm::vec2 p6{ pp3.x, pp3.y + 20.0f };
 
     // Outer wall near the flipper
-    addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3,p6});
+    addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3});
+    addLineSegment(lines, pp3, p6);
+
+    // vertical wall near the right flipper
+    glm::vec2 pp3r = {-pp3.x, pp3.y};
+    glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
+    addLineSegment(lines, pp3r, p8);
 
     //
     // Slingshot
