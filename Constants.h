@@ -3,7 +3,7 @@
 
 namespace Constants
 {
-    constexpr float worldSize{ 72.0f };
+    constexpr float worldSize{ 70.0f };
     constexpr float worldL{ -worldSize/2.0f };
     constexpr float worldR{ worldSize/2.0f };
     constexpr float worldT{ worldSize };

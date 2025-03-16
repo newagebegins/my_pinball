@@ -173,7 +173,6 @@ ArcPoints findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
     glm::vec2 d1p = perp(d1);
     glm::vec2 d2p = perp(d2);
     float t = r * glm::length(d1p + d2p) / glm::length(d1 - d2);
-    glm::vec2 O = P + d1*t - d1p*r;
     glm::vec2 Q = P + d1*t;
     glm::vec2 R = P + d2*t;
     return {Q, R};
@@ -223,6 +222,17 @@ void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec
 glm::vec2 makeVec(float angle, float len)
 {
     return { std::cos(angle) * len, std::sin(angle) * len };
+}
+
+// Circle through 2 points with the given radius
+Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
+{
+    glm::vec2 p3{ (p1 + p2) / 2.0f };
+    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
+    float m{ glm::length(p3-p1) };
+    float l{ std::sqrt(r*r - m*m) };
+    glm::vec2 c{p3 + L*l};
+    return {c, r};
 }
 
 Game::Game()
@@ -280,24 +290,20 @@ Game::Game()
     glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
     addLineSegment(lines, pp3r, p8);
 
-    //
-    // Slingshot
-    //
-
-    Line sL{ l1.parallel(-3.0f) };
-    // addLine(lines, sL);
-    Line sB{ l0.parallel(3.5f) };
-    // addLine(lines, sB);
-    glm::vec2 sLB{ findIntersection(sL, sB) };
-    Line sLB1{ sLB, glm::radians(109.0f) };
-    // addLine(lines, sLB1, highlightCol);
-    Line sR{ sLB1.parallel(-4.0f) };
-    // addLine(lines, sR);
-    glm::vec2 sRB{ findIntersection(sR, sB) };
-    glm::vec2 sLR{ findIntersection(sL, sR) };
-
     // Construct slingshot
     {
+        Line sL{ l1.parallel(-3.0f) };
+        // addLine(lines, sL);
+        Line sB{ l0.parallel(3.5f) };
+        // addLine(lines, sB);
+        glm::vec2 sLB{ findIntersection(sL, sB) };
+        Line sLB1{ sLB, glm::radians(109.0f) };
+        // addLine(lines, sLB1, highlightCol);
+        Line sR{ sLB1.parallel(-4.0f) };
+        // addLine(lines, sR);
+        glm::vec2 sRB{ findIntersection(sR, sB) };
+        glm::vec2 sLR{ findIntersection(sL, sR) };
+
         float LRr = 0.8f;
         ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
         addArcLinesMirrored(lines, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
@@ -315,6 +321,7 @@ Game::Game()
         addMirroredLineSegments(lines, apLB.pStart, apLR.pEnd);
     }
 
+#if 0
     // Draw a border that represents the gameplay area
     {
         constexpr float d{ 0.1f };
@@ -327,6 +334,7 @@ Game::Game()
         // right
         addLine(lines, Line::vertical(Constants::worldR - d));
     }
+#endif
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
@@ -366,6 +374,15 @@ Game::Game()
     glm::vec2 p30 = findIntersection(ll1, l20);
     glm::vec2 p31 = findIntersection(ll1, l21);
     addLineSegment(lines, p30, p31);
+
+    float arc30r = 20.87f;
+    glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
+    Arc arc30{ arc30c, arc30r, 0.0f, glm::radians(90.0f) };
+    addArcLines(lines, arc30);
+
+    float arc31r = 20.87f - (p23.x - p22.x);
+    Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
+    addArcLines(lines, arc31);
 }
 
 void Game::update(float dt, std::uint8_t input)
@@ -392,15 +409,4 @@ void Game::update(float dt, std::uint8_t input)
     {
         flipper.update(dt);
     }
-}
-
-// Circle through 2 points with the given radius
-Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
-{
-    glm::vec2 p3{ (p1 + p2) / 2.0f };
-    glm::vec2 L{ -glm::normalize(perp(p2 - p1)) };
-    float m{ glm::length(p3-p1) };
-    float l{ std::sqrt(r*r - m*m) };
-    glm::vec2 c{p3 + L*l};
-    return {c, r};
 }
