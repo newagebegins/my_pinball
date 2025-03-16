@@ -345,6 +345,27 @@ Game::Game()
     glm::vec2 p15 = p14 + makeVec(glm::radians(a0), 3.9f);
     // right one-way wall
     addLineSegment(lines, p14, p15);
+
+    Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
+    // addLine(lines, l3r);
+    Line l20 = l3r.parallel(-0.5f);
+    // addLine(lines, l20);
+    Line l21 = l20.parallel(-3.4f);
+    // addLine(lines, l21);
+
+    glm::vec2 p20 = findIntersection(l20, worldB);
+    glm::vec2 p21 = findIntersection(l21, worldB);
+    float k20 = 48.0f;
+    glm::vec2 p22 = p20 + glm::vec2{0.0f, 1.0f} * k20;
+    glm::vec2 p23 = p21 + glm::vec2{0.0f, 1.0f} * k20;
+    // Plunger shaft
+    addLineSegment(lines, p20, p22);
+    addLineSegment(lines, p21, p23);
+
+    // Top of the plunger
+    glm::vec2 p30 = findIntersection(ll1, l20);
+    glm::vec2 p31 = findIntersection(ll1, l21);
+    addLineSegment(lines, p30, p31);
 }
 
 void Game::update(float dt, std::uint8_t input)
