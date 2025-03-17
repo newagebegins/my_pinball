@@ -293,6 +293,21 @@ void addPopBumperLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
     addCircleLines(verts, {c, rs});
 }
 
+void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, float t)
+{
+    glm::vec2 D{p1-p0};
+    glm::vec2 c{ p0 + D*t };
+    glm::vec2 d{glm::normalize(D)};
+    glm::vec2 dp = perp(d);
+    float hw = 1.4f;
+    float h = 0.6f;
+    glm::vec2 q0 = c - d*hw;
+    glm::vec2 q3 = c + d*hw;
+    glm::vec2 q1 = q0 + dp*h;
+    glm::vec2 q2 = q3 + dp*h;
+    addLineStrip(verts, {q0,q1,q2,q3});
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -485,6 +500,7 @@ Game::Game()
 
     // left-top walled island
     addLineStrip(lines, {a51s,p53,p54,a51e});
+    addButton(lines, p53, p54, 0.5f);
 
     glm::vec2 a52s = getArcStart(a52);
     glm::vec2 a52e = getArcEnd(a52);
