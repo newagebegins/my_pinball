@@ -452,12 +452,19 @@ Game::Game()
     Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
     addArcLines(lines, arc31);
 
+    // Right upper wall
     glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
     glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
     glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
     glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
     glm::vec2 p14 = getArcEnd(arc31);
     addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
+
+    addButton(lines, p9, p10, 0.5f);
+    addButton(lines, p10, p11, 0.5f);
+    addButton(lines, p11, p12, 0.3f);
+    addButton(lines, p11, p12, 0.7f);
+    addButton(lines, p12, p13, 0.5f);
 
     Ray r30{ p14, glm::normalize(p14-p13) };
     glm::vec2 p15 = findIntersection(r30, arc30);
