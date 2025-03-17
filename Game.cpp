@@ -370,7 +370,8 @@ Game::Game()
     // addLine(lines, l3r);
     Line l20 = l3r.parallel(-0.5f);
     // addLine(lines, l20);
-    Line l21 = l20.parallel(-3.4f);
+    float plungerShuteWidth = 3.4f;
+    Line l21 = l20.parallel(-plungerShuteWidth);
     // addLine(lines, l21);
 
     glm::vec2 p20 = findIntersection(l20, worldB);
@@ -392,7 +393,7 @@ Game::Game()
     Arc arc30{ arc30c, arc30r, 0.0f, glm::radians(90.0f) };
     addArcLines(lines, arc30);
 
-    float arc31r = 20.87f - (p23.x - p22.x);
+    float arc31r = 20.87f - plungerShuteWidth;
     Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
     addArcLines(lines, arc31);
 
@@ -412,9 +413,19 @@ Game::Game()
     glm::vec2 p41 = p40 + glm::vec2{-7.68f, 0.0f};
     // bridge between left and right arcs at the top of the table
     addLineSegment(lines, p40, p41);
+    // addCircleLines(lines, {p41, 0.5f});
 
     // left top big arc
-    addArcLines(lines, makeArc(p41, p7, 20.8f));
+    Arc a50 = makeArc(p41, p7, 20.8f);
+    addArcLines(lines, a50);
+
+    // left small arc
+    Arc a51 = {a50.p, a50.r - plungerShuteWidth, glm::radians(105.0f), glm::radians(130.0f)};
+    addArcLines(lines, a51);
+
+    // left medium arc
+    Arc a52 = {a50.p, a50.r - plungerShuteWidth, glm::radians(150.0f), glm::radians(205.0f)};
+    addArcLines(lines, a52);
 }
 
 void Game::update(float dt, std::uint8_t input)
