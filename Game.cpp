@@ -235,6 +235,28 @@ Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
     return {c, r};
 }
 
+glm::vec2 getArcEnd(const Arc& arc)
+{
+    return arc.p + glm::vec2{std::cos(arc.end), std::sin(arc.end)} * arc.r;
+}
+
+struct Ray
+{
+    glm::vec2 p;
+    glm::vec2 d;
+};
+
+glm::vec2 findIntersection(const Ray& r, const Arc& a)
+{
+    float n = r.p.x - a.p.x;
+    float m = r.p.y - a.p.y;
+    float b = 2.0f*(r.d.x*n + r.d.y*m);
+    float c = n*n + m*m - a.r*a.r;
+    float D = b*b - 4*c;
+    float t = (-b + std::sqrt(D)) / 2.0f;
+    return r.p + r.d * t;
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -343,17 +365,6 @@ Game::Game()
     glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
     addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
 
-    glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
-    glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
-    glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
-    glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
-    float a0 = 80.4f;
-    glm::vec2 p14 = p13 + makeVec(glm::radians(a0), 2.5f);
-    addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
-    glm::vec2 p15 = p14 + makeVec(glm::radians(a0), 3.9f);
-    // right one-way wall
-    addLineSegment(lines, p14, p15);
-
     Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
     // addLine(lines, l3r);
     Line l20 = l3r.parallel(-0.5f);
@@ -383,6 +394,18 @@ Game::Game()
     float arc31r = 20.87f - (p23.x - p22.x);
     Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
     addArcLines(lines, arc31);
+
+    glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
+    glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
+    glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
+    glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
+    glm::vec2 p14 = getArcEnd(arc31);
+    addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
+
+    Ray r30{ p14, glm::normalize(p14-p13) };
+    glm::vec2 p15 = findIntersection(r30, arc30);
+    // right one-way wall
+    addLineSegment(lines, p14, p15);
 }
 
 void Game::update(float dt, std::uint8_t input)
