@@ -360,6 +360,7 @@ Game::Game()
 
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
+    // left bottom arc
     addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
 
     glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
@@ -406,6 +407,14 @@ Game::Game()
     glm::vec2 p15 = findIntersection(r30, arc30);
     // right one-way wall
     addLineSegment(lines, p14, p15);
+
+    glm::vec2 p40 = getArcEnd(arc30);
+    glm::vec2 p41 = p40 + glm::vec2{-7.68f, 0.0f};
+    // bridge between left and right arcs at the top of the table
+    addLineSegment(lines, p40, p41);
+
+    // left top big arc
+    addArcLines(lines, makeArc(p41, p7, 20.8f));
 }
 
 void Game::update(float dt, std::uint8_t input)
