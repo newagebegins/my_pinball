@@ -47,7 +47,7 @@ void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p
     verts.push_back({p1, defCol});
 }
 
-void addMirroredLineSegments(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, glm::vec3 color = defCol)
+void addLineSegmentMirrored(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, glm::vec3 color = defCol)
 {
     verts.push_back({p0, color});
     verts.push_back({p1, color});
@@ -339,6 +339,10 @@ Game::Game()
     glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
     addLineSegment(lines, pp3r, p8);
 
+    glm::vec2 p80 = findIntersection(l2, l3);
+    // ditch caps
+    addLineSegmentMirrored(lines, pp1, p80);
+
     // Construct slingshot
     {
         Line sL{ l1.parallel(-3.0f) };
@@ -365,9 +369,9 @@ Game::Game()
         ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
         addArcLinesMirrored(lines, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
 
-        addMirroredLineSegments(lines, apLR.pStart, apRB.pEnd);
-        addMirroredLineSegments(lines, apRB.pStart, apLB.pEnd);
-        addMirroredLineSegments(lines, apLB.pStart, apLR.pEnd);
+        addLineSegmentMirrored(lines, apLR.pStart, apRB.pEnd);
+        addLineSegmentMirrored(lines, apRB.pStart, apLB.pEnd);
+        addLineSegmentMirrored(lines, apLB.pStart, apLR.pEnd);
     }
 
 #if 0
