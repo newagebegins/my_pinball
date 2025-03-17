@@ -163,7 +163,7 @@ Arc makeArc(glm::vec2 pStart, glm::vec2 pEnd, float r)
     glm::vec2 pMid{ (pStart + pEnd) / 2.0f };
     glm::vec2 L{ -glm::normalize(perp(pStart - pEnd)) };
     float m{ glm::length(pMid-pEnd) };
-    float l{ std::sqrt(r*r - m*m) };
+    float l{ std::abs(r-m) < 0.001f ? 0.0f : std::sqrt(r*r - m*m) };
     glm::vec2 c{pMid + L*l};
     float start{ getAngle(pStart - c) };
     float end{ getAngle(pEnd - c) };
@@ -267,6 +267,21 @@ glm::vec2 findIntersection(const Ray& r, const Arc& a)
     float D = b*b - 4*c;
     float t = (-b + std::sqrt(D)) / 2.0f;
     return r.p + r.d * t;
+}
+
+void addCapsuleLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
+{
+    float hw=0.45f;
+    float hh=1.0f;
+    glm::vec2 tl{c.x-hw,c.y+hh};
+    glm::vec2 tr{c.x+hw,c.y+hh};
+    glm::vec2 bl{c.x-hw,c.y-hh};
+    glm::vec2 br{c.x+hw,c.y-hh};
+    addLineSegment(verts, tl, bl);
+    addLineSegment(verts, tr, br);
+    int s = 8;
+    addArcLines(verts, makeArc(tr, tl, hw), s);
+    addArcLines(verts, makeArc(bl, br, hw), s);
 }
 
 Game::Game()
@@ -465,6 +480,14 @@ Game::Game()
     glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
     // left-middle walled island
     addLineStrip(lines, {a52e,p60,p61,p62,a52s});
+
+    float capsuleGap = 4.3f;
+    float capsuleX = -0.7f;
+    addCapsuleLines(lines, {capsuleX,p53.y});
+    addCapsuleLines(lines, {capsuleX+capsuleGap,p53.y});
+
+    // Central vertical symmetry line
+    //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
 }
 
 void Game::update(float dt, std::uint8_t input)
