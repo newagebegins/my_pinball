@@ -509,6 +509,10 @@ Game::Game()
     glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
     // left-middle walled island
     addLineStrip(lines, {a52e,p60,p61,p62,a52s});
+    addButton(lines, p61, p60, 0.5f);
+    addButton(lines, p62, p61, 0.5f);
+    addButton(lines, a52s, p62, 0.3f);
+    addButton(lines, a52s, p62, 0.7f);
 
     float capsuleGap = 4.3f;
     float leftCapsuleX = -0.7f;
