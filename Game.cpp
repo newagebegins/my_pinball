@@ -31,6 +31,12 @@ struct Line
     }
 };
 
+struct Ray
+{
+    glm::vec2 p;
+    glm::vec2 d;
+};
+
 constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 [[maybe_unused]] constexpr glm::vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
@@ -74,6 +80,13 @@ void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color =
     constexpr float len{ 100.0f };
     verts.push_back({l.p + l.d*len, color});
     verts.push_back({l.p - l.d*len, color});
+}
+
+void addRay(std::vector<DefaultVertex>& verts, const Ray& r, glm::vec3 color = auxCol)
+{
+    constexpr float len{ 100.0f };
+    verts.push_back({r.p, color});
+    verts.push_back({r.p + r.d*len, color});
 }
 
 void addLineStrip(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2>& pts, float xScale = 1.0f, glm::vec3 color = defCol)
@@ -235,16 +248,15 @@ Circle makeCircle(glm::vec2 p1, glm::vec2 p2, float r)
     return {c, r};
 }
 
+glm::vec2 getArcStart(const Arc& arc)
+{
+    return arc.p + glm::vec2{std::cos(arc.start), std::sin(arc.start)} * arc.r;
+}
+
 glm::vec2 getArcEnd(const Arc& arc)
 {
     return arc.p + glm::vec2{std::cos(arc.end), std::sin(arc.end)} * arc.r;
 }
-
-struct Ray
-{
-    glm::vec2 p;
-    glm::vec2 d;
-};
 
 glm::vec2 findIntersection(const Ray& r, const Arc& a)
 {
@@ -426,6 +438,25 @@ Game::Game()
     // left medium arc
     Arc a52 = {a50.p, a50.r - plungerShuteWidth, glm::radians(150.0f), glm::radians(205.0f)};
     addArcLines(lines, a52);
+
+    glm::vec2 a51s = getArcStart(a51);
+    Ray r51s{ a51.p, glm::normalize(a51s - a51.p) };
+    // addRay(lines, r51s); 
+
+    glm::vec2 a51e = getArcEnd(a51);
+    Ray r51e{ a51.p, glm::normalize(a51e - a51.p) };
+    // addRay(lines, r51e);
+
+    glm::vec2 p50 = findIntersection(r51s, a50);
+    // left one-way wall
+    addLineSegment(lines, a51s, p50);
+
+    float w51 = 2.3f;
+    glm::vec2 p53 = a51s - r51s.d*w51;
+    glm::vec2 p54 = a51e - r51e.d*w51;
+
+    // left-top walled island
+    addLineStrip(lines, {a51s,p53,p54,a51e});
 }
 
 void Game::update(float dt, std::uint8_t input)
