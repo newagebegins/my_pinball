@@ -284,6 +284,15 @@ void addCapsuleLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
     addArcLines(verts, makeArc(bl, br, hw), s);
 }
 
+void addPopBumperLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
+{
+    float rb{2.75f};
+    float gap{0.45f};
+    float rs{rb-gap};
+    addCircleLines(verts, {c, rb});
+    addCircleLines(verts, {c, rs});
+}
+
 Game::Game()
 {
     // Ball's radius is 1.0f, everything is measured relative to that
@@ -486,12 +495,21 @@ Game::Game()
     addLineStrip(lines, {a52e,p60,p61,p62,a52s});
 
     float capsuleGap = 4.3f;
-    float capsuleX = -0.7f;
-    addCapsuleLines(lines, {capsuleX,p53.y});
-    addCapsuleLines(lines, {capsuleX+capsuleGap,p53.y});
+    float leftCapsuleX = -0.7f;
+    float rightCapsuleX = leftCapsuleX + capsuleGap;
+    float capsuleY = p53.y;
+    addCapsuleLines(lines, {leftCapsuleX, capsuleY});
+    addCapsuleLines(lines, {rightCapsuleX, capsuleY});
 
     // Central vertical symmetry line
     //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
+
+    glm::vec2 pb1{-4.0f, 53.0f};
+    glm::vec2 pb2{pb1.x+10.7f, pb1.y+0.5f};
+    glm::vec2 pb3{pb1.x+5.5f, pb1.y-7.5f};
+    addPopBumperLines(lines, pb1);
+    addPopBumperLines(lines, pb2);
+    addPopBumperLines(lines, pb3);
 }
 
 void Game::update(float dt, std::uint8_t input)
