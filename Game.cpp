@@ -457,6 +457,14 @@ Game::Game()
 
     // left-top walled island
     addLineStrip(lines, {a51s,p53,p54,a51e});
+
+    glm::vec2 a52s = getArcStart(a52);
+    glm::vec2 a52e = getArcEnd(a52);
+    glm::vec2 p60 = a52e + makeVec(glm::radians(-32.5f), 3.6f);
+    glm::vec2 p61 = p60 + makeVec(glm::radians(44.0f), 4.5f);
+    glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
+    // left-middle walled island
+    addLineStrip(lines, {a52e,p60,p61,p62,a52s});
 }
 
 void Game::update(float dt, std::uint8_t input)
