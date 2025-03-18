@@ -110,15 +110,59 @@ public:
 class DefaultShader
 {
 public:
-    static GLuint createVao(const std::vector<DefaultVertex>& verts);
+    static GLuint createVao(const std::vector<DefaultVertex>& verts)
+    {
+        GLuint vao;
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
 
-    DefaultShader();
+        GLuint vbo;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
+        glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, pos));
+
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, col));
+
+        return vao;
+    }
+
+    DefaultShader()
+        : m_program{ "assets/default_v.glsl", "assets/default_f.glsl" }
+        , m_modelLoc{ glGetUniformLocation(m_program.id, "model") }
+        , m_viewLoc{ glGetUniformLocation(m_program.id, "view") }
+        , m_projectionLoc{ glGetUniformLocation(m_program.id, "projection") }
+    {
+        assert(m_modelLoc >= 0);
+        assert(m_viewLoc >= 0);
+        assert(m_projectionLoc >= 0);
+    }
+
     DefaultShader(const DefaultShader&) = delete;
 
-    void use() const;
-    void setModel(const glm::mat3& model) const;
-    void setView(const glm::mat3& view) const;
-    void setProjection(const glm::mat4& projection) const;
+    void DefaultShader::use() const
+    {
+        glUseProgram(m_program.id);
+    }
+
+    void DefaultShader::setModel(const glm::mat3& model) const
+    {
+        glUniformMatrix3fv(m_modelLoc, 1, GL_FALSE, &model[0][0]);
+    }
+
+    void DefaultShader::setView(const glm::mat3& view) const
+    {
+        glUniformMatrix3fv(m_viewLoc, 1, GL_FALSE, &view[0][0]);
+    }
+
+    void DefaultShader::setProjection(const glm::mat4& projection) const
+    {
+        glUniformMatrix4fv(m_projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    }
 
 private:
     const ShaderProgram m_program;
