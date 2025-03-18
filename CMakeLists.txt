@@ -21,7 +21,6 @@ add_executable(my_pinball
   Game.cpp
   LineSegmentRenderer.cpp
   main.cpp
-  ShaderProgram.cpp
 )
 # C++17 for [[maybe_unused]]
 target_compile_features(my_pinball PRIVATE cxx_std_17)
