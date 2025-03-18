@@ -23,7 +23,6 @@ add_executable(my_pinball
   Game.cpp
   LineSegmentRenderer.cpp
   main.cpp
-  Renderer.cpp
   Shader.cpp
   ShaderProgram.cpp
 )
