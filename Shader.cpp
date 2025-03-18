@@ -1,10 +1,27 @@
 #include "Shader.h"
 
-#include "File.h"
-
 #include <cassert>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <sstream>
+
+namespace File
+{
+    std::string readEntireFile(const char* path)
+    {
+        std::ifstream ifs{ path };
+        if (!ifs.is_open())
+        {
+            std::cerr << "Failed to open the file: " << path << '\n';
+            std::exit(EXIT_FAILURE);
+        }
+        std::stringstream s{};
+        s << ifs.rdbuf();
+        return s.str();
+    }
+}
 
 Shader::Shader(GLenum type, const char* path)
     : id{ glCreateShader(type) }
