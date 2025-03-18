@@ -15,7 +15,6 @@ add_subdirectory(deps/glad)
 add_subdirectory(deps/glm)
 
 add_executable(my_pinball
-  FlipperRenderer.cpp
   Game.cpp
   LineSegmentRenderer.cpp
   main.cpp
