@@ -790,30 +790,30 @@ public:
     }
 };
 
+static GLuint createVao(const std::vector<DefaultVertex>& verts)
+{
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
+    glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, pos));
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, col));
+
+    return vao;
+}
+
 class DefaultShader
 {
 public:
-    static GLuint createVao(const std::vector<DefaultVertex>& verts)
-    {
-        GLuint vao;
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-
-        GLuint vbo;
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
-        glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
-
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, pos));
-
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, col));
-
-        return vao;
-    }
-
     DefaultShader()
         : m_program{ "assets/default_v.glsl", "assets/default_f.glsl" }
         , m_modelLoc{ glGetUniformLocation(m_program.id, "model") }
@@ -1066,11 +1066,11 @@ int main()
 
     defShader = new DefaultShader{};
 
-    rd.lineVao = DefaultShader::createVao(game.lines);
+    rd.lineVao = createVao(game.lines);
     rd.numLineVerts = static_cast<int>(game.lines.size());
 
-    rd.circleVao = DefaultShader::createVao(makeCircleVerts());
-    rd.flipperVao = DefaultShader::createVao(makeFlipperVerts());
+    rd.circleVao = createVao(makeCircleVerts());
+    rd.flipperVao = createVao(makeFlipperVerts());
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
