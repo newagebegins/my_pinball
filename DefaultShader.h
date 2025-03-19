@@ -144,22 +144,22 @@ public:
 
     DefaultShader(const DefaultShader&) = delete;
 
-    void DefaultShader::use() const
+    void use() const
     {
         glUseProgram(m_program.id);
     }
 
-    void DefaultShader::setModel(const glm::mat3& model) const
+    void setModel(const glm::mat3& model) const
     {
         glUniformMatrix3fv(m_modelLoc, 1, GL_FALSE, &model[0][0]);
     }
 
-    void DefaultShader::setView(const glm::mat3& view) const
+    void setView(const glm::mat3& view) const
     {
         glUniformMatrix3fv(m_viewLoc, 1, GL_FALSE, &view[0][0]);
     }
 
-    void DefaultShader::setProjection(const glm::mat4& projection) const
+    void setProjection(const glm::mat4& projection) const
     {
         glUniformMatrix4fv(m_projectionLoc, 1, GL_FALSE, &projection[0][0]);
     }
