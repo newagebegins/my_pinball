@@ -16,7 +16,6 @@ add_subdirectory(deps/glm)
 
 add_executable(my_pinball
   Game.cpp
-  LineSegmentRenderer.cpp
   main.cpp
 )
 # C++17 for [[maybe_unused]]
