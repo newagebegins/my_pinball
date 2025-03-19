@@ -1,5 +1,4 @@
 #include "Constants.h"
-#include "DefaultVertex.h"
 
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
@@ -18,6 +17,12 @@
 #include <string>
 #include <sstream>
 #include <vector>
+
+struct DefaultVertex
+{
+    glm::vec2 pos;
+    glm::vec3 col;
+};
 
 constexpr float pi{ glm::pi<float>() };
 constexpr float twoPi{ 2.0f * pi };
