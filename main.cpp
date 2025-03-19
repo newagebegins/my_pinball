@@ -20,6 +20,8 @@ struct RenderData
 {
     GLuint lineVao;
     int numLineVerts;
+
+    GLuint circleVao;
 };
 
 namespace Constants
@@ -908,63 +910,45 @@ private:
     const GLuint m_vao{};
 };
 
-class CircleRenderer
+constexpr int numCircleVerts{ 64 };
+
+static std::vector<DefaultVertex> makeCircleVerts()
 {
-public:
-    CircleRenderer() : m_vao{ DefaultShader::createVao(makeVerts()) }
-    {}
+    std::vector<DefaultVertex> verts(numCircleVerts);
 
-    CircleRenderer(const CircleRenderer&) = delete;
-
-    void render(const Circle& c, const DefaultShader* s) const
+    for (std::size_t i{ 0 }; i < numCircleVerts; ++i)
     {
-        glm::mat3 model{ 1.0f };
-        model = glm::translate(model, c.center);
-        model = glm::scale(model, glm::vec2{ c.radius });
-        s->setModel(model);
-
-        glBindVertexArray(m_vao);
-        glDrawArrays(GL_LINE_LOOP, 0, numVerts);
-    }
-private:
-    static constexpr int numVerts{ 64 };
-
-    static std::vector<DefaultVertex> makeVerts()
-    {
-        std::vector<DefaultVertex> verts(numVerts);
-
-        for (std::size_t i{ 0 }; i < numVerts; ++i)
-        {
-            const float t{ static_cast<float>(i) / numVerts };
-            const float angle{ t * 2.0f * glm::pi<float>() };
-            verts[i] = {
-                { std::cos(angle), std::sin(angle) },
-                { 1.0f, 1.0f, 1.0f },
-            };
-        }
-
-        return verts;
+        const float t{ static_cast<float>(i) / numCircleVerts };
+        const float angle{ t * 2.0f * glm::pi<float>() };
+        verts[i] = {
+            { std::cos(angle), std::sin(angle) },
+            { 1.0f, 1.0f, 1.0f },
+        };
     }
 
-    const GLuint m_vao{};
-};
+    return verts;
+}
 
 static Game game;
-
 static RenderData rd;
 
 static DefaultShader* defShader;
-static CircleRenderer* circleRenderer;
 static FlipperRenderer* flipperRenderer;
 
-void render()
+static void render()
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     for (const auto& c : game.circles)
     {
-        circleRenderer->render(c, defShader);
+        glm::mat3 model{ 1.0f };
+        model = glm::translate(model, c.center);
+        model = glm::scale(model, glm::vec2{ c.radius });
+        defShader->setModel(model);
+
+        glBindVertexArray(rd.circleVao);
+        glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
     }
 
     for (const auto& flipper : game.flippers)
@@ -1097,11 +1081,12 @@ int main()
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
     defShader = new DefaultShader{};
-    circleRenderer = new CircleRenderer{};
     flipperRenderer = new FlipperRenderer{};
 
     rd.lineVao = DefaultShader::createVao(game.lines);
     rd.numLineVerts = static_cast<int>(game.lines.size());
+
+    rd.circleVao = DefaultShader::createVao(makeCircleVerts());
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
