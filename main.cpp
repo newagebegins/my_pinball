@@ -1,5 +1,3 @@
-#include "Constants.h"
-
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
 #include <glm/ext/scalar_constants.hpp>
@@ -17,6 +15,15 @@
 #include <string>
 #include <sstream>
 #include <vector>
+
+namespace Constants
+{
+    constexpr float worldSize{ 70.0f };
+    constexpr float worldL{ -worldSize/2.0f };
+    constexpr float worldR{ worldSize/2.0f };
+    constexpr float worldT{ worldSize };
+    constexpr float worldB{ 0.0f };
+}
 
 struct DefaultVertex
 {
