@@ -16,6 +16,12 @@
 #include <sstream>
 #include <vector>
 
+struct RenderData
+{
+    GLuint lineVao;
+    int numLineVerts;
+};
+
 namespace Constants
 {
     constexpr float worldSize{ 70.0f };
@@ -902,27 +908,6 @@ private:
     const GLuint m_vao{};
 };
 
-class LineSegmentRenderer
-{
-public:
-    LineSegmentRenderer(const std::vector<DefaultVertex>& verts)
-        : m_vao{ DefaultShader::createVao(verts) }
-        , m_numVerts{ static_cast<int>(verts.size()) }
-    {}
-
-    void render(const DefaultShader* s) const
-    {
-        s->setModel({ 1.0f });
-    
-        glBindVertexArray(m_vao);
-        glDrawArrays(GL_LINES, 0, m_numVerts);
-    }
-
-private:
-    const GLuint m_vao{};
-    const int m_numVerts{};
-};
-
 class CircleRenderer
 {
 public:
@@ -966,10 +951,11 @@ private:
 
 static Game game;
 
+static RenderData rd;
+
 static DefaultShader* defShader;
 static CircleRenderer* circleRenderer;
 static FlipperRenderer* flipperRenderer;
-static LineSegmentRenderer* lineSegmentRenderer;
 
 void render()
 {
@@ -986,7 +972,9 @@ void render()
         flipperRenderer->render(flipper, defShader);
     }
 
-    lineSegmentRenderer->render(defShader);
+    defShader->setModel({ 1.0f });
+    glBindVertexArray(rd.lineVao);
+    glDrawArrays(GL_LINES, 0, rd.numLineVerts);
 }
 
 static void APIENTRY glDebugOutput(
@@ -1111,7 +1099,9 @@ int main()
     defShader = new DefaultShader{};
     circleRenderer = new CircleRenderer{};
     flipperRenderer = new FlipperRenderer{};
-    lineSegmentRenderer = new LineSegmentRenderer{ game.lines };
+
+    rd.lineVao = DefaultShader::createVao(game.lines);
+    rd.numLineVerts = static_cast<int>(game.lines.size());
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
