@@ -1,4 +1,3 @@
-#include "Circle.h"
 #include "Constants.h"
 #include "DefaultShader.h"
 #include "FlipperRenderer.h"

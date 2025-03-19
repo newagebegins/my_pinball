@@ -1,7 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "Circle.h"
 #include "DefaultVertex.h"
 #include "Flipper.h"
 #include "Math.h"
@@ -13,6 +12,12 @@
 
 #define BUTTON_L (1 << 0)
 #define BUTTON_R (1 << 1)
+
+struct Circle
+{
+    glm::vec2 center;
+    float radius;
+};
 
 struct Arc
 {
