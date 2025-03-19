@@ -852,9 +852,9 @@ public:
     {}
 
     FlipperRenderer(const FlipperRenderer&) = delete;
-    void render(const Flipper& flipper, const DefaultShader& s) const
+    void render(const Flipper& flipper, const DefaultShader* s) const
     {
-        s.setModel(flipper.getTransform());
+        s->setModel(flipper.getTransform());
         glBindVertexArray(m_vao);
         glDrawArrays(GL_LINE_LOOP, 0, numVerts);
     }
@@ -910,9 +910,9 @@ public:
         , m_numVerts{ static_cast<int>(verts.size()) }
     {}
 
-    void render(const DefaultShader& s) const
+    void render(const DefaultShader* s) const
     {
-        s.setModel({ 1.0f });
+        s->setModel({ 1.0f });
     
         glBindVertexArray(m_vao);
         glDrawArrays(GL_LINES, 0, m_numVerts);
@@ -931,12 +931,12 @@ public:
 
     CircleRenderer(const CircleRenderer&) = delete;
 
-    void render(const Circle& c, const DefaultShader& s) const
+    void render(const Circle& c, const DefaultShader* s) const
     {
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
         model = glm::scale(model, glm::vec2{ c.radius });
-        s.setModel(model);
+        s->setModel(model);
 
         glBindVertexArray(m_vao);
         glDrawArrays(GL_LINE_LOOP, 0, numVerts);
@@ -964,47 +964,30 @@ private:
     const GLuint m_vao{};
 };
 
-class Renderer
+static Game game;
+
+static DefaultShader* defShader;
+static CircleRenderer* circleRenderer;
+static FlipperRenderer* flipperRenderer;
+static LineSegmentRenderer* lineSegmentRenderer;
+
+void render()
 {
-public:
-    Renderer(const Game& game)
-        : m_lineSegmentRenderer{ game.lines }
-    {
-        const glm::mat3 identity{ 1.0f };
-        const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-        m_defShader.use();
-        m_defShader.setView(identity);
-        m_defShader.setProjection(projection);
+    for (const auto& c : game.circles)
+    {
+        circleRenderer->render(c, defShader);
     }
 
-    Renderer(const Renderer&) = delete;
-    void render(const Game& game) const
+    for (const auto& flipper : game.flippers)
     {
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        for (const auto& c : game.circles)
-        {
-            m_circleRenderer.render(c, m_defShader);
-        }
-
-        for (const auto& flipper : game.flippers)
-        {
-            m_flipperRenderer.render(flipper, m_defShader);
-        }
-
-        m_lineSegmentRenderer.render(m_defShader);
+        flipperRenderer->render(flipper, defShader);
     }
-private:
-    DefaultShader m_defShader{};
-    CircleRenderer m_circleRenderer{};
-    FlipperRenderer m_flipperRenderer{};
-    LineSegmentRenderer m_lineSegmentRenderer;
-};
 
-Game game{};
-Renderer* renderer{};
+    lineSegmentRenderer->render(defShader);
+}
 
 static void APIENTRY glDebugOutput(
     GLenum source,
@@ -1080,7 +1063,7 @@ static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int heigh
 
 static void windowRefreshCallback(GLFWwindow* window)
 {
-    renderer->render(game);
+    render();
     glfwSwapBuffers(window);
 }
 
@@ -1125,7 +1108,17 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    renderer = new Renderer(game);
+    defShader = new DefaultShader{};
+    circleRenderer = new CircleRenderer{};
+    flipperRenderer = new FlipperRenderer{};
+    lineSegmentRenderer = new LineSegmentRenderer{ game.lines };
+
+    const glm::mat3 identity{ 1.0f };
+    const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
+
+    defShader->use();
+    defShader->setView(identity);
+    defShader->setProjection(projection);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1151,13 +1144,11 @@ int main()
         }
 
         game.update(dt, input);
-        renderer->render(game);
+        render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    delete renderer;
 
     return EXIT_SUCCESS;
 }
