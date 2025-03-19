@@ -14,10 +14,7 @@ FetchContent_MakeAvailable(glfw)
 add_subdirectory(deps/glad)
 add_subdirectory(deps/glm)
 
-add_executable(my_pinball
-  Game.cpp
-  main.cpp
-)
+add_executable(my_pinball main.cpp)
 # C++17 for [[maybe_unused]]
 target_compile_features(my_pinball PRIVATE cxx_std_17)
 target_compile_options(my_pinball PRIVATE
