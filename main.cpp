@@ -22,6 +22,7 @@ struct RenderData
     int numLineVerts;
 
     GLuint circleVao;
+    GLuint flipperVao;
 };
 
 namespace Constants
@@ -853,62 +854,44 @@ private:
     const GLint m_projectionLoc{};
 };
 
-class FlipperRenderer
+constexpr int numFlipperCircleSegments1{ 16 };
+constexpr int numFlipperCircleSegments2{ 8 };
+constexpr int numFlipperVerts{ (numFlipperCircleSegments1 + 1) + (numFlipperCircleSegments2 + 1) };
+
+static std::vector<DefaultVertex> makeFlipperVerts()
 {
-public:
-    FlipperRenderer() : m_vao{ DefaultShader::createVao(makeVerts()) }
-    {}
+    constexpr float width{ 8.0f };
+    constexpr float d{ width - Flipper::r0 - Flipper::r1 };
+    constexpr float cosA{ (Flipper::r0 - Flipper::r1) / d };
+    const float a{ std::acos(cosA) };
+    constexpr glm::vec3 color{ 1.0f, 1.0f, 1.0f };
 
-    FlipperRenderer(const FlipperRenderer&) = delete;
-    void render(const Flipper& flipper, const DefaultShader* s) const
+    std::vector<DefaultVertex> verts(numFlipperVerts);
+
+    std::size_t nextVert{ 0 };
+
+    for (int i{ 0 }; i <= numFlipperCircleSegments1; ++i)
     {
-        s->setModel(flipper.getTransform());
-        glBindVertexArray(m_vao);
-        glDrawArrays(GL_LINE_LOOP, 0, numVerts);
+        const float t{ static_cast<float>(i) / numFlipperCircleSegments1 };
+        const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
+        const float x{ Flipper::r0 * std::cos(angle) };
+        const float y{ Flipper::r0 * std::sin(angle) };
+        verts[nextVert++] = { { x, y }, color };
     }
 
-private:
-    static constexpr int numCircleSegments1{ 16 };
-    static constexpr int numCircleSegments2{ 8 };
-    static constexpr int numVerts{ (numCircleSegments1 + 1) + (numCircleSegments2 + 1) };
-
-    static std::vector<DefaultVertex> makeVerts()
+    for (int i{ 0 }; i <= numFlipperCircleSegments2; ++i)
     {
-        constexpr float width{ 8.0f };
-        constexpr float d{ width - Flipper::r0 - Flipper::r1 };
-        constexpr float cosA{ (Flipper::r0 - Flipper::r1) / d };
-        const float a{ std::acos(cosA) };
-        constexpr glm::vec3 color{ 1.0f, 1.0f, 1.0f };
-
-        std::vector<DefaultVertex> verts(numVerts);
-
-        std::size_t nextVert{ 0 };
-
-        for (int i{ 0 }; i <= numCircleSegments1; ++i)
-        {
-            const float t{ static_cast<float>(i) / numCircleSegments1 };
-            const float angle{ a + 2.0f * t * (glm::pi<float>() - a) };
-            const float x{ Flipper::r0 * std::cos(angle) };
-            const float y{ Flipper::r0 * std::sin(angle) };
-            verts[nextVert++] = { { x, y }, color };
-        }
-
-        for (int i{ 0 }; i <= numCircleSegments2; ++i)
-        {
-            const float t{ static_cast<float>(i) / numCircleSegments2 };
-            const float angle{ -a + t * 2.0f * a };
-            const float x{ d + Flipper::r1 * std::cos(angle) };
-            const float y{ Flipper::r1 * std::sin(angle) };
-            verts[nextVert++] = { { x, y }, color };
-        }
-
-        assert(nextVert == numVerts);
-
-        return verts;
+        const float t{ static_cast<float>(i) / numFlipperCircleSegments2 };
+        const float angle{ -a + t * 2.0f * a };
+        const float x{ d + Flipper::r1 * std::cos(angle) };
+        const float y{ Flipper::r1 * std::sin(angle) };
+        verts[nextVert++] = { { x, y }, color };
     }
 
-    const GLuint m_vao{};
-};
+    assert(nextVert == numFlipperVerts);
+
+    return verts;
+}
 
 constexpr int numCircleVerts{ 64 };
 
@@ -933,7 +916,6 @@ static Game game;
 static RenderData rd;
 
 static DefaultShader* defShader;
-static FlipperRenderer* flipperRenderer;
 
 static void render()
 {
@@ -953,7 +935,9 @@ static void render()
 
     for (const auto& flipper : game.flippers)
     {
-        flipperRenderer->render(flipper, defShader);
+        defShader->setModel(flipper.getTransform());
+        glBindVertexArray(rd.flipperVao);
+        glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
     defShader->setModel({ 1.0f });
@@ -1081,12 +1065,12 @@ int main()
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
     defShader = new DefaultShader{};
-    flipperRenderer = new FlipperRenderer{};
 
     rd.lineVao = DefaultShader::createVao(game.lines);
     rd.numLineVerts = static_cast<int>(game.lines.size());
 
     rd.circleVao = DefaultShader::createVao(makeCircleVerts());
+    rd.flipperVao = DefaultShader::createVao(makeFlipperVerts());
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
