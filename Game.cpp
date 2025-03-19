@@ -1,7 +1,6 @@
 #include "Game.h"
 
 #include "Constants.h"
-#include "Math.h"
 
 struct Line
 {

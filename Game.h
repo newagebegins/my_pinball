@@ -3,12 +3,20 @@
 
 #include "DefaultVertex.h"
 #include "Flipper.h"
-#include "Math.h"
 
 #include <glm/glm.hpp>
+#include <glm/ext/scalar_constants.hpp>
 
 #include <cassert>
 #include <vector>
+
+constexpr float pi{ glm::pi<float>() };
+constexpr float twoPi{ 2.0f * pi };
+
+inline glm::vec2 perp(glm::vec2 v)
+{
+    return {-v.y, v.x};
+}
 
 #define BUTTON_L (1 << 0)
 #define BUTTON_R (1 << 1)
