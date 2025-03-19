@@ -2,7 +2,6 @@
 #include "DefaultShader.h"
 #include "FlipperRenderer.h"
 #include "Game.h"
-#include "LineSegmentRenderer.h"
 
 #include <glm/ext/matrix_clip_space.hpp> // for glm::ortho()
 #include <glm/ext/scalar_constants.hpp>
@@ -15,6 +14,28 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
+
+class LineSegmentRenderer
+{
+public:
+    LineSegmentRenderer(const std::vector<DefaultVertex>& verts)
+        : m_vao{ DefaultShader::createVao(verts) }
+        , m_numVerts{ static_cast<int>(verts.size()) }
+    {}
+
+    void render(const DefaultShader& s) const
+    {
+        s.setModel({ 1.0f });
+    
+        glBindVertexArray(m_vao);
+        glDrawArrays(GL_LINES, 0, m_numVerts);
+    }
+
+private:
+    const GLuint m_vao{};
+    const int m_numVerts{};
+};
 
 class CircleRenderer
 {
