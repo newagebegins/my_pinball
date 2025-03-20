@@ -94,12 +94,12 @@ struct Flipper
     float angularVelocity{ -maxAngularVelocity };
 };
 
-void updateTransform(Flipper& f)
+void updateTransform(Flipper* f)
 {
-    f.transform = glm::mat3{ 1.0f };
-    f.transform = glm::translate(f.transform, f.position);
-    f.transform = glm::rotate(f.transform, f.orientation * f.scaleX);
-    f.transform = glm::scale(f.transform, { f.scaleX, 1.0f });
+    f->transform = glm::mat3{ 1.0f };
+    f->transform = glm::translate(f->transform, f->position);
+    f->transform = glm::rotate(f->transform, f->orientation * f->scaleX);
+    f->transform = glm::scale(f->transform, { f->scaleX, 1.0f });
 }
 
 Flipper makeFlipper(glm::vec2 position, bool isLeft)
@@ -107,7 +107,7 @@ Flipper makeFlipper(glm::vec2 position, bool isLeft)
     Flipper f;
     f.position = position;
     f.scaleX = isLeft ? 1.0f : -1.0f;
-    updateTransform(f);
+    updateTransform(&f);
     return f;
 }
 
@@ -959,9 +959,9 @@ int main()
     // Ball's radius is 1.0f, everything is measured relative to that
     rd->circles[0] = {{0.0f, 10.0f}, 1.0f};
 
-    std::vector<Flipper> flippers{};
-    flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
-    flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
+    Flipper flippers[numFlippers];
+    flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
+    flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
     std::vector<DefaultVertex> lines = constructLines();
 
@@ -1029,11 +1029,12 @@ int main()
             flippers[1].angularVelocity = -maxAngularVelocity;
         }
 
-        for (auto& flipper : flippers)
+        for (int i = 0; i < numFlippers; ++ i)
         {
-            flipper.orientation += flipper.angularVelocity * dt;
-            flipper.orientation = glm::clamp(flipper.orientation, Flipper::minAngle, Flipper::maxAngle);
-            updateTransform(flipper);
+            Flipper *f = &flippers[i];
+            f->orientation += f->angularVelocity * dt;
+            f->orientation = glm::clamp(f->orientation, Flipper::minAngle, Flipper::maxAngle);
+            updateTransform(f);
         }
 
         for (int i = 0; i < numFlippers; ++i)
