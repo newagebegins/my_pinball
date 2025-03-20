@@ -18,6 +18,12 @@
 
 struct RenderData
 {
+    GLuint program;
+
+    GLint modelLoc;
+    GLint viewLoc;
+    GLint projectionLoc;
+
     GLuint lineVao;
     int numLineVerts;
 
@@ -811,49 +817,6 @@ static GLuint createVao(const std::vector<DefaultVertex>& verts)
     return vao;
 }
 
-class DefaultShader
-{
-public:
-    DefaultShader()
-        : m_program{ "assets/default_v.glsl", "assets/default_f.glsl" }
-        , m_modelLoc{ glGetUniformLocation(m_program.id, "model") }
-        , m_viewLoc{ glGetUniformLocation(m_program.id, "view") }
-        , m_projectionLoc{ glGetUniformLocation(m_program.id, "projection") }
-    {
-        assert(m_modelLoc >= 0);
-        assert(m_viewLoc >= 0);
-        assert(m_projectionLoc >= 0);
-    }
-
-    DefaultShader(const DefaultShader&) = delete;
-
-    void use() const
-    {
-        glUseProgram(m_program.id);
-    }
-
-    void setModel(const glm::mat3& model) const
-    {
-        glUniformMatrix3fv(m_modelLoc, 1, GL_FALSE, &model[0][0]);
-    }
-
-    void setView(const glm::mat3& view) const
-    {
-        glUniformMatrix3fv(m_viewLoc, 1, GL_FALSE, &view[0][0]);
-    }
-
-    void setProjection(const glm::mat4& projection) const
-    {
-        glUniformMatrix4fv(m_projectionLoc, 1, GL_FALSE, &projection[0][0]);
-    }
-
-private:
-    const ShaderProgram m_program;
-    const GLint m_modelLoc{};
-    const GLint m_viewLoc{};
-    const GLint m_projectionLoc{};
-};
-
 constexpr int numFlipperCircleSegments1{ 16 };
 constexpr int numFlipperCircleSegments2{ 8 };
 constexpr int numFlipperVerts{ (numFlipperCircleSegments1 + 1) + (numFlipperCircleSegments2 + 1) };
@@ -915,8 +878,6 @@ static std::vector<DefaultVertex> makeCircleVerts()
 static Game game;
 static RenderData rd;
 
-static DefaultShader* defShader;
-
 static void render()
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -927,7 +888,7 @@ static void render()
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
         model = glm::scale(model, glm::vec2{ c.radius });
-        defShader->setModel(model);
+        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &model[0][0]);
 
         glBindVertexArray(rd.circleVao);
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
@@ -935,12 +896,12 @@ static void render()
 
     for (const auto& flipper : game.flippers)
     {
-        defShader->setModel(flipper.getTransform());
+        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.getTransform()[0][0]);
         glBindVertexArray(rd.flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
-    defShader->setModel({ 1.0f });
+    glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &glm::mat3{1.0f}[0][0]);
     glBindVertexArray(rd.lineVao);
     glDrawArrays(GL_LINES, 0, rd.numLineVerts);
 }
@@ -1064,7 +1025,16 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    defShader = new DefaultShader{};
+    ShaderProgram sp{ "assets/default_v.glsl", "assets/default_f.glsl" };
+    rd.program = sp.id;
+
+    rd.modelLoc = glGetUniformLocation(rd.program, "model");
+    rd.viewLoc = glGetUniformLocation(rd.program, "view");
+    rd.projectionLoc = glGetUniformLocation(rd.program, "projection");
+
+    assert(rd.modelLoc >= 0);
+    assert(rd.viewLoc >= 0);
+    assert(rd.projectionLoc >= 0);
 
     rd.lineVao = createVao(game.lines);
     rd.numLineVerts = static_cast<int>(game.lines.size());
@@ -1075,9 +1045,9 @@ int main()
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
-    defShader->use();
-    defShader->setView(identity);
-    defShader->setProjection(projection);
+    glUseProgram(rd.program);
+    glUniformMatrix3fv(rd.viewLoc, 1, GL_FALSE, &identity[0][0]);
+    glUniformMatrix4fv(rd.projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
     while (!glfwWindowShouldClose(window))
     {
