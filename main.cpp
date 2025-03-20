@@ -16,6 +16,14 @@
 #include <sstream>
 #include <vector>
 
+struct Circle
+{
+    glm::vec2 center;
+    float radius;
+};
+
+constexpr int numCircles = 1;
+
 struct RenderData
 {
     GLuint program;
@@ -29,6 +37,8 @@ struct RenderData
 
     GLuint circleVao;
     GLuint flipperVao;
+
+    Circle circles[numCircles];
 };
 
 namespace Constants
@@ -56,12 +66,6 @@ static glm::vec2 perp(glm::vec2 v)
 
 #define BUTTON_L (1 << 0)
 #define BUTTON_R (1 << 1)
-
-struct Circle
-{
-    glm::vec2 center;
-    float radius;
-};
 
 struct Arc
 {
@@ -420,7 +424,6 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-static std::vector<Circle> circles;
 static std::vector<Flipper> flippers;
 static std::vector<DefaultVertex> lines;
 
@@ -808,8 +811,10 @@ static void render(RenderData* rd)
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    for (const auto& c : circles)
+    for (int i = 0; i < numCircles; ++i)
     {
+        Circle c = rd->circles[i];
+
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
         model = glm::scale(model, glm::vec2{ c.radius });
@@ -950,15 +955,16 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
+    RenderData* rd = &g_rd;
+
     // Ball's radius is 1.0f, everything is measured relative to that
-    circles.push_back({ {0.0f, 10.0f}, 1.0f });
+    rd->circles[0] = {{0.0f, 10.0f}, 1.0f};
 
     flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
     flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
 
     constructLines();
 
-    RenderData* rd = &g_rd;
 
     rd->program = createShaderProgram(vertexCode, fragmentCode);
 
