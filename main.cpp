@@ -23,6 +23,7 @@ struct Circle
 };
 
 constexpr int numCircles = 1;
+constexpr int numFlippers = 2;
 
 struct RenderData
 {
@@ -39,6 +40,7 @@ struct RenderData
     GLuint flipperVao;
 
     Circle circles[numCircles];
+    glm::mat3 flipperTransforms[numFlippers];
 };
 
 namespace Constants
@@ -424,7 +426,6 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-static std::vector<Flipper> flippers;
 static std::vector<DefaultVertex> lines;
 
 void constructLines()
@@ -824,9 +825,9 @@ static void render(RenderData* rd)
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
     }
 
-    for (const auto& flipper : flippers)
+    for (int i = 0; i < numFlippers; ++i)
     {
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &rd->flipperTransforms[i][0][0]);
         glBindVertexArray(rd->flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
@@ -960,11 +961,11 @@ int main()
     // Ball's radius is 1.0f, everything is measured relative to that
     rd->circles[0] = {{0.0f, 10.0f}, 1.0f};
 
+    std::vector<Flipper> flippers{};
     flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
     flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
 
     constructLines();
-
 
     rd->program = createShaderProgram(vertexCode, fragmentCode);
 
@@ -1035,6 +1036,11 @@ int main()
             flipper.orientation += flipper.angularVelocity * dt;
             flipper.orientation = glm::clamp(flipper.orientation, Flipper::minAngle, Flipper::maxAngle);
             updateTransform(flipper);
+        }
+
+        for (int i = 0; i < numFlippers; ++i)
+        {
+            rd->flipperTransforms[i] = flippers[i].transform;
         }
 
         render(rd);
