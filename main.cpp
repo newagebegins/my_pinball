@@ -801,9 +801,9 @@ static std::vector<DefaultVertex> makeCircleVerts()
     return verts;
 }
 
-static RenderData rd;
+static RenderData g_rd;
 
-static void render()
+static void render(RenderData* rd)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -813,22 +813,22 @@ static void render()
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
         model = glm::scale(model, glm::vec2{ c.radius });
-        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &model[0][0]);
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &model[0][0]);
 
-        glBindVertexArray(rd.circleVao);
+        glBindVertexArray(rd->circleVao);
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
     }
 
     for (const auto& flipper : flippers)
     {
-        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
-        glBindVertexArray(rd.flipperVao);
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
+        glBindVertexArray(rd->flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
-    glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &glm::mat3{1.0f}[0][0]);
-    glBindVertexArray(rd.lineVao);
-    glDrawArrays(GL_LINES, 0, rd.numLineVerts);
+    glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &glm::mat3{1.0f}[0][0]);
+    glBindVertexArray(rd->lineVao);
+    glDrawArrays(GL_LINES, 0, rd->numLineVerts);
 }
 
 static void APIENTRY glDebugOutput(
@@ -905,7 +905,7 @@ static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int heigh
 
 static void windowRefreshCallback(GLFWwindow* window)
 {
-    render();
+    render(&g_rd);
     glfwSwapBuffers(window);
 }
 
@@ -958,28 +958,30 @@ int main()
 
     constructLines();
 
-    rd.program = createShaderProgram(vertexCode, fragmentCode);
+    RenderData* rd = &g_rd;
 
-    rd.modelLoc = glGetUniformLocation(rd.program, "model");
-    rd.viewLoc = glGetUniformLocation(rd.program, "view");
-    rd.projectionLoc = glGetUniformLocation(rd.program, "projection");
+    rd->program = createShaderProgram(vertexCode, fragmentCode);
 
-    assert(rd.modelLoc >= 0);
-    assert(rd.viewLoc >= 0);
-    assert(rd.projectionLoc >= 0);
+    rd->modelLoc = glGetUniformLocation(rd->program, "model");
+    rd->viewLoc = glGetUniformLocation(rd->program, "view");
+    rd->projectionLoc = glGetUniformLocation(rd->program, "projection");
 
-    rd.lineVao = createVao(lines);
-    rd.numLineVerts = static_cast<int>(lines.size());
+    assert(rd->modelLoc >= 0);
+    assert(rd->viewLoc >= 0);
+    assert(rd->projectionLoc >= 0);
 
-    rd.circleVao = createVao(makeCircleVerts());
-    rd.flipperVao = createVao(makeFlipperVerts());
+    rd->lineVao = createVao(lines);
+    rd->numLineVerts = static_cast<int>(lines.size());
+
+    rd->circleVao = createVao(makeCircleVerts());
+    rd->flipperVao = createVao(makeFlipperVerts());
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
-    glUseProgram(rd.program);
-    glUniformMatrix3fv(rd.viewLoc, 1, GL_FALSE, &identity[0][0]);
-    glUniformMatrix4fv(rd.projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    glUseProgram(rd->program);
+    glUniformMatrix3fv(rd->viewLoc, 1, GL_FALSE, &identity[0][0]);
+    glUniformMatrix4fv(rd->projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -1029,7 +1031,7 @@ int main()
             updateTransform(flipper);
         }
 
-        render();
+        render(rd);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
