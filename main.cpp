@@ -75,13 +75,6 @@ struct Arc
     float r;
     float start;
     float end;
-
-    Arc(glm::vec2 P, float R, float S, float E)
-        : p{P}, r{R}, start{S}, end{E}
-    {
-        assert(0.0f <= start && start < twoPi);
-        assert(0.0f <= end && end < twoPi);
-    }
 };
 
 constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
@@ -309,6 +302,9 @@ ArcPoints findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 std::vector<glm::vec2> getArcPoints(const Arc& arc, int numSteps = 32)
 {
     std::vector<glm::vec2> verts{};
+
+    assert(0.0f <= arc.start && arc.start < twoPi);
+    assert(0.0f <= arc.end && arc.end < twoPi);
 
     float start{ arc.start };
     float end{ arc.end };
