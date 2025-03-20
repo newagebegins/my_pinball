@@ -719,65 +719,53 @@ namespace File
     }
 }
 
-class Shader
-{
-public:
-    const GLuint id{};
-    Shader(GLenum type, const char* path)
-        : id{ glCreateShader(type) }
-    {
-        std::string codeStr{ File::readEntireFile(path) };
-        const char* code{ codeStr.c_str() };
-
-        glShaderSource(id, 1, &code, nullptr);
-        glCompileShader(id);
-
-        GLint success{};
-        glGetShaderiv(id, GL_COMPILE_STATUS, &success);
-        if (!success)
-        {
-            GLchar infoLog[512];
-            glGetShaderInfoLog(id, sizeof(infoLog), nullptr, infoLog);
-            switch (type)
-            {
-                case GL_VERTEX_SHADER:   std::cerr << "Vertex"; break;
-                case GL_FRAGMENT_SHADER: std::cerr << "Fragment"; break;
-                default:                 std::cerr << "???"; break;
-            }
-            std::cerr << " shader error:\n" << infoLog << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-    }
-
-    Shader(const Shader&) = delete;
-
-    ~Shader()
-    {
-        glDeleteShader(id);
-    }
-};
-
 static GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
 {
-    const Shader vs{ GL_VERTEX_SHADER, vertexPath };
-    const Shader fs{ GL_FRAGMENT_SHADER, fragmentPath };
+    GLchar infoLog[512];
+    GLint success;
 
-    const GLuint id{ glCreateProgram() };
-    glAttachShader(id, vs.id);
-    glAttachShader(id, fs.id);
-    glLinkProgram(id);
-
-    GLint success{};
-    glGetProgramiv(id, GL_LINK_STATUS, &success);
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    std::string vStr = File::readEntireFile(vertexPath);
+    const char* vsCode = vStr.c_str();
+    glShaderSource(vs, 1, &vsCode, nullptr);
+    glCompileShader(vs);
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        GLchar infoLog[512];
-        glGetProgramInfoLog(id, sizeof(infoLog), nullptr, infoLog);
+        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    std::string fStr = File::readEntireFile(fragmentPath);
+    const char* fsCode = fStr.c_str();
+    glShaderSource(fs, 1, &fsCode, nullptr);
+    glCompileShader(fs);
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
+        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
+        std::exit(EXIT_FAILURE);
+    }
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
         std::cerr << "Program link error:\n" << infoLog << '\n';
         std::exit(EXIT_FAILURE);
     }
 
-    return id;
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    return program;
 }
 
 static GLuint createVao(const std::vector<DefaultVertex>& verts)
