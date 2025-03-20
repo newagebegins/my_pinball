@@ -49,7 +49,7 @@ struct DefaultVertex
 constexpr float pi{ glm::pi<float>() };
 constexpr float twoPi{ 2.0f * pi };
 
-inline glm::vec2 perp(glm::vec2 v)
+static glm::vec2 perp(glm::vec2 v)
 {
     return {-v.y, v.x};
 }
@@ -705,7 +705,7 @@ struct Game
 
 namespace File
 {
-    inline std::string readEntireFile(const char* path)
+    static std::string readEntireFile(const char* path)
     {
         std::ifstream ifs{ path };
         if (!ifs.is_open())
@@ -757,7 +757,7 @@ public:
     }
 };
 
-inline GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
+static GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
 {
     const Shader vs{ GL_VERTEX_SHADER, vertexPath };
     const Shader fs{ GL_FRAGMENT_SHADER, fragmentPath };
@@ -779,22 +779,6 @@ inline GLuint createShaderProgram(const char* vertexPath, const char* fragmentPa
 
     return id;
 }
-
-class ShaderProgram
-{
-public:
-    const GLuint id{};
-    ShaderProgram(const char* vertexPath, const char* fragmentPath)
-        : id{ createShaderProgram(vertexPath, fragmentPath) }
-    {}
-
-    ShaderProgram(const ShaderProgram&) = delete;
-
-    ~ShaderProgram()
-    {
-        glDeleteProgram(id);
-    }
-};
 
 static GLuint createVao(const std::vector<DefaultVertex>& verts)
 {
@@ -1025,8 +1009,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    ShaderProgram sp{ "assets/default_v.glsl", "assets/default_f.glsl" };
-    rd.program = sp.id;
+    rd.program = createShaderProgram("assets/default_v.glsl", "assets/default_f.glsl");
 
     rd.modelLoc = glGetUniformLocation(rd.program, "model");
     rd.viewLoc = glGetUniformLocation(rd.program, "view");
