@@ -78,61 +78,39 @@ struct Arc
     }
 };
 
-class Flipper
+constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
+
+struct Flipper
 {
-public:
     static constexpr float r0{ 1.1f };
     static constexpr float r1{ 0.7f };
 
     static constexpr float minAngle{ glm::radians(-38.0f) };
     static constexpr float maxAngle{ glm::radians(33.0f) };
 
-    Flipper(glm::vec2 position, bool isLeft)
-        : m_position{ position }
-    , m_scaleX{ isLeft ? 1.0f : -1.0f }
-    {
-        updateTransform();
-    }
-
-    void activate()
-    {
-        m_angularVelocity = maxAngularVelocity;
-    }
-
-    void deactivate()
-    {
-        m_angularVelocity = -maxAngularVelocity;
-    }
-
-    void update(float dt)
-    {
-        m_orientation += m_angularVelocity * dt;
-        m_orientation = glm::clamp(m_orientation, minAngle, maxAngle);
-        updateTransform();
-    }
-
-    const glm::mat3& getTransform() const
-    {
-        return m_transform;
-    }
-
-private:
-    static constexpr float maxAngularVelocity{ 2.0f * glm::pi<float>() * 4.0f };
-
-    glm::mat3 m_transform{ glm::mat3{ 1.0f } };
-    const glm::vec2 m_position{ glm::vec2{ 0.0f } };
-    float m_orientation{ 0.0f };
-    const float m_scaleX{ 1.0f };
-    float m_angularVelocity{ -maxAngularVelocity };
-
-    void updateTransform()
-    {
-        m_transform = glm::mat3{ 1.0f };
-        m_transform = glm::translate(m_transform, m_position);
-        m_transform = glm::rotate(m_transform, m_orientation * m_scaleX);
-        m_transform = glm::scale(m_transform, { m_scaleX, 1.0f });
-    }
+    glm::mat3 transform;
+    glm::vec2 position;
+    float orientation{ 0.0f };
+    float scaleX{ 1.0f };
+    float angularVelocity{ -maxAngularVelocity };    
 };
+
+void updateTransform(Flipper& f)
+{
+    f.transform = glm::mat3{ 1.0f };
+    f.transform = glm::translate(f.transform, f.position);
+    f.transform = glm::rotate(f.transform, f.orientation * f.scaleX);
+    f.transform = glm::scale(f.transform, { f.scaleX, 1.0f });
+}
+
+Flipper makeFlipper(glm::vec2 position, bool isLeft)
+{
+    Flipper f;
+    f.position = position;
+    f.scaleX = isLeft ? 1.0f : -1.0f;
+    updateTransform(f);
+    return f;
+}
 
 struct Line
 {
@@ -454,8 +432,8 @@ struct Game
         constexpr float flipperX{ 10.0f };
         constexpr float flipperY{ 7.0f };
     
-        flippers.emplace_back(glm::vec2{ -flipperX, flipperY }, true);
-        flippers.emplace_back(glm::vec2{  flipperX, flipperY }, false);
+        flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
+        flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
     
         const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
     
@@ -680,25 +658,27 @@ struct Game
     {
         if (input & BUTTON_L)
         {
-            flippers[0].activate();
+            flippers[0].angularVelocity = maxAngularVelocity;
         }
         else
         {
-            flippers[0].deactivate();
+            flippers[0].angularVelocity = -maxAngularVelocity;
         }
     
         if (input & BUTTON_R)
         {
-            flippers[1].activate();
+            flippers[1].angularVelocity = maxAngularVelocity;
         }
         else
         {
-            flippers[1].deactivate();
+            flippers[1].angularVelocity = -maxAngularVelocity;
         }
     
         for (auto& flipper : flippers)
         {
-            flipper.update(dt);
+            flipper.orientation += flipper.angularVelocity * dt;
+            flipper.orientation = glm::clamp(flipper.orientation, Flipper::minAngle, Flipper::maxAngle);
+            updateTransform(flipper);
         }
     }
 };
@@ -880,7 +860,7 @@ static void render()
 
     for (const auto& flipper : game.flippers)
     {
-        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.getTransform()[0][0]);
+        glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
         glBindVertexArray(rd.flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
