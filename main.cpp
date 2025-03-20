@@ -74,7 +74,7 @@ struct Arc
         : p{P}, r{R}, start{S}, end{E}
     {
         assert(0.0f <= start && start < twoPi);
-        assert(0.0f <= end && end < twoPi);    
+        assert(0.0f <= end && end < twoPi);
     }
 };
 
@@ -92,7 +92,7 @@ struct Flipper
     glm::vec2 position;
     float orientation{ 0.0f };
     float scaleX{ 1.0f };
-    float angularVelocity{ -maxAngularVelocity };    
+    float angularVelocity{ -maxAngularVelocity };
 };
 
 void updateTransform(Flipper& f)
@@ -417,271 +417,233 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
     addLineStrip(verts, {q0,q1,q2,q3});
 }
 
-struct Game
+constexpr float flipperX{ 10.0f };
+constexpr float flipperY{ 7.0f };
+
+static std::vector<Circle> circles;
+static std::vector<Flipper> flippers;
+static std::vector<DefaultVertex> lines;
+
+void constructLines()
 {
-    std::vector<Circle> circles{};
-    std::vector<Flipper> flippers{};
-    std::vector<DefaultVertex> lines{};
+    const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
-    Game()
+    Line l0{ p0, Flipper::minAngle };
+    Line l1{ Line::vertical(-flipperX - 9.0f) };
+    // addLine(lines, l0);
+    // addLine(lines, l1);
+
+    const glm::vec2 p1{ findIntersection(l0, l1) };
+    const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
+
+    // Angled wall right near the flipper
+    addLineStripMirrored(lines, {p0,p1,p2});
+
+    Line l2{ l0.parallel(-5.0f) };
+    // addLine(lines, l2);
+
+    Line l3{ l1.parallel(4.0f) };
+    // addLine(lines, l3);
+
+    Line l4{ Line::vertical(-flipperX - 4.5f) };
+    // addLine(lines, l4);
+
+    Line worldB{ Line::horizontal(Constants::worldB) };
+
+    // ditch
+    glm::vec2 pp1 = findIntersection(l1, l2);
+    Line ll1 = Line::horizontal(pp1.y - 3.0f);
+    glm::vec2 pp2 = findIntersection(l1, ll1);
+    glm::vec2 pp3 = findIntersection(ll1, l3);
+
+    const glm::vec2 p3{ findIntersection(l4, worldB) };
+    const glm::vec2 p4{ findIntersection(l2, l4) };
+    const glm::vec2 p6{ pp3.x, pp3.y + 20.0f };
+
+    // Outer wall near the flipper
+    addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3});
+    addLineSegment(lines, pp3, p6);
+
+    // vertical wall near the right flipper
+    glm::vec2 pp3r = {-pp3.x, pp3.y};
+    glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
+    addLineSegment(lines, pp3r, p8);
+
+    glm::vec2 p80 = findIntersection(l2, l3);
+    // ditch caps
+    addLineSegmentMirrored(lines, pp1, p80);
+
+    // Construct slingshot
     {
-        // Ball's radius is 1.0f, everything is measured relative to that
-    
-        circles.push_back({ {0.0f, 10.0f}, 1.0f });
-    
-        constexpr float flipperX{ 10.0f };
-        constexpr float flipperY{ 7.0f };
-    
-        flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
-        flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
-    
-        const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-    
-        Line l0{ p0, Flipper::minAngle };
-        Line l1{ Line::vertical(-flipperX - 9.0f) };
-        // addLine(lines, l0);
-        // addLine(lines, l1);
-    
-        const glm::vec2 p1{ findIntersection(l0, l1) };
-        const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
-    
-        // Angled wall right near the flipper
-        addLineStripMirrored(lines, {p0,p1,p2});
-    
-        Line l2{ l0.parallel(-5.0f) };
-        // addLine(lines, l2);
-    
-        Line l3{ l1.parallel(4.0f) };
-        // addLine(lines, l3);
-    
-        Line l4{ Line::vertical(-flipperX - 4.5f) };
-        // addLine(lines, l4);
-    
-        Line worldB{ Line::horizontal(Constants::worldB) };
-    
-        // ditch
-        glm::vec2 pp1 = findIntersection(l1, l2);
-        Line ll1 = Line::horizontal(pp1.y - 3.0f);
-        glm::vec2 pp2 = findIntersection(l1, ll1);
-        glm::vec2 pp3 = findIntersection(ll1, l3);
-    
-        const glm::vec2 p3{ findIntersection(l4, worldB) };
-        const glm::vec2 p4{ findIntersection(l2, l4) };
-        const glm::vec2 p6{ pp3.x, pp3.y + 20.0f };
-    
-        // Outer wall near the flipper
-        addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3});
-        addLineSegment(lines, pp3, p6);
-    
-        // vertical wall near the right flipper
-        glm::vec2 pp3r = {-pp3.x, pp3.y};
-        glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
-        addLineSegment(lines, pp3r, p8);
-    
-        glm::vec2 p80 = findIntersection(l2, l3);
-        // ditch caps
-        addLineSegmentMirrored(lines, pp1, p80);
-    
-        // Construct slingshot
-        {
-            Line sL{ l1.parallel(-3.0f) };
-            // addLine(lines, sL);
-            Line sB{ l0.parallel(3.5f) };
-            // addLine(lines, sB);
-            glm::vec2 sLB{ findIntersection(sL, sB) };
-            Line sLB1{ sLB, glm::radians(109.0f) };
-            // addLine(lines, sLB1, highlightCol);
-            Line sR{ sLB1.parallel(-4.0f) };
-            // addLine(lines, sR);
-            glm::vec2 sRB{ findIntersection(sR, sB) };
-            glm::vec2 sLR{ findIntersection(sL, sR) };
-    
-            float LRr = 0.8f;
-            ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
-            addArcLinesMirrored(lines, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
-    
-            float RBr = 0.82f;
-            ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
-            addArcLinesMirrored(lines, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
-    
-            float LBr = 2.0f;
-            ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
-            addArcLinesMirrored(lines, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
-    
-            addLineSegmentMirrored(lines, apLR.pStart, apRB.pEnd);
-            addLineSegmentMirrored(lines, apRB.pStart, apLB.pEnd);
-            addLineSegmentMirrored(lines, apLB.pStart, apLR.pEnd);
-        }
-    
-    #if 0
-        // Draw a border that represents the gameplay area
-        {
-            constexpr float d{ 0.1f };
-            // bottom
-            addLine(lines, Line::horizontal(Constants::worldB + d));
-            // top
-            addLine(lines, Line::horizontal(Constants::worldT - d));
-            // left
-            addLine(lines, Line::vertical(Constants::worldL + d));
-            // right
-            addLine(lines, Line::vertical(Constants::worldR - d));
-        }
-    #endif
-    
-        glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
-    
-        // left bottom arc
-        addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
-    
-        glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
-        addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
-    
-        Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
-        // addLine(lines, l3r);
-        Line l20 = l3r.parallel(-0.5f);
-        // addLine(lines, l20);
-        float plungerShuteWidth = 3.4f;
-        Line l21 = l20.parallel(-plungerShuteWidth);
-        // addLine(lines, l21);
-    
-        glm::vec2 p20 = findIntersection(l20, worldB);
-        glm::vec2 p21 = findIntersection(l21, worldB);
-        float k20 = 48.0f;
-        glm::vec2 p22 = p20 + glm::vec2{0.0f, 1.0f} * k20;
-        glm::vec2 p23 = p21 + glm::vec2{0.0f, 1.0f} * k20;
-        // Plunger shaft
-        addLineSegment(lines, p20, p22);
-        addLineSegment(lines, p21, p23);
-    
-        // Top of the plunger
-        glm::vec2 p30 = findIntersection(ll1, l20);
-        glm::vec2 p31 = findIntersection(ll1, l21);
-        addLineSegment(lines, p30, p31);
-    
-        float arc30r = 20.87f;
-        glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
-        Arc arc30{ arc30c, arc30r, 0.0f, glm::radians(90.0f) };
-        addArcLines(lines, arc30);
-    
-        float arc31r = 20.87f - plungerShuteWidth;
-        Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
-        addArcLines(lines, arc31);
-    
-        // Right upper wall
-        glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
-        glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
-        glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
-        glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
-        glm::vec2 p14 = getArcEnd(arc31);
-        addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
-    
-        addButton(lines, p9, p10, 0.5f);
-        addButton(lines, p10, p11, 0.5f);
-        addButton(lines, p11, p12, 0.3f);
-        addButton(lines, p11, p12, 0.7f);
-        addButton(lines, p12, p13, 0.5f);
-    
-        Ray r30{ p14, glm::normalize(p14-p13) };
-        glm::vec2 p15 = findIntersection(r30, arc30);
-        // right one-way wall
-        addLineSegment(lines, p14, p15);
-    
-        glm::vec2 p40 = getArcEnd(arc30);
-        glm::vec2 p41 = p40 + glm::vec2{-7.68f, 0.0f};
-        // bridge between left and right arcs at the top of the table
-        addLineSegment(lines, p40, p41);
-        // addCircleLines(lines, {p41, 0.5f});
-    
-        // left top big arc
-        Arc a50 = makeArc(p41, p7, 20.8f);
-        addArcLines(lines, a50);
-    
-        // left small arc
-        Arc a51 = {a50.p, a50.r - plungerShuteWidth, glm::radians(105.0f), glm::radians(130.0f)};
-        addArcLines(lines, a51);
-    
-        // left medium arc
-        Arc a52 = {a50.p, a50.r - plungerShuteWidth, glm::radians(150.0f), glm::radians(205.0f)};
-        addArcLines(lines, a52);
-    
-        glm::vec2 a51s = getArcStart(a51);
-        Ray r51s{ a51.p, glm::normalize(a51s - a51.p) };
-        // addRay(lines, r51s); 
-    
-        glm::vec2 a51e = getArcEnd(a51);
-        Ray r51e{ a51.p, glm::normalize(a51e - a51.p) };
-        // addRay(lines, r51e);
-    
-        glm::vec2 p50 = findIntersection(r51s, a50);
-        // left one-way wall
-        addLineSegment(lines, a51s, p50);
-    
-        float w51 = 2.3f;
-        glm::vec2 p53 = a51s - r51s.d*w51;
-        glm::vec2 p54 = a51e - r51e.d*w51;
-    
-        // left-top walled island
-        addLineStrip(lines, {a51s,p53,p54,a51e});
-        addButton(lines, p53, p54, 0.5f);
-    
-        glm::vec2 a52s = getArcStart(a52);
-        glm::vec2 a52e = getArcEnd(a52);
-        glm::vec2 p60 = a52e + makeVec(glm::radians(-32.5f), 3.6f);
-        glm::vec2 p61 = p60 + makeVec(glm::radians(44.0f), 4.5f);
-        glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
-        // left-middle walled island
-        addLineStrip(lines, {a52e,p60,p61,p62,a52s});
-        addButton(lines, p61, p60, 0.5f);
-        addButton(lines, p62, p61, 0.5f);
-        addButton(lines, a52s, p62, 0.3f);
-        addButton(lines, a52s, p62, 0.7f);
-    
-        float capsuleGap = 4.3f;
-        float leftCapsuleX = -0.7f;
-        float rightCapsuleX = leftCapsuleX + capsuleGap;
-        float capsuleY = p53.y;
-        addCapsuleLines(lines, {leftCapsuleX, capsuleY});
-        addCapsuleLines(lines, {rightCapsuleX, capsuleY});
-    
-        // Central vertical symmetry line
-        //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
-    
-        glm::vec2 pb1{-4.0f, 53.0f};
-        glm::vec2 pb2{pb1.x+10.7f, pb1.y+0.5f};
-        glm::vec2 pb3{pb1.x+5.5f, pb1.y-7.5f};
-        addPopBumperLines(lines, pb1);
-        addPopBumperLines(lines, pb2);
-        addPopBumperLines(lines, pb3);
+        Line sL{ l1.parallel(-3.0f) };
+        // addLine(lines, sL);
+        Line sB{ l0.parallel(3.5f) };
+        // addLine(lines, sB);
+        glm::vec2 sLB{ findIntersection(sL, sB) };
+        Line sLB1{ sLB, glm::radians(109.0f) };
+        // addLine(lines, sLB1, highlightCol);
+        Line sR{ sLB1.parallel(-4.0f) };
+        // addLine(lines, sR);
+        glm::vec2 sRB{ findIntersection(sR, sB) };
+        glm::vec2 sLR{ findIntersection(sL, sR) };
+
+        float LRr = 0.8f;
+        ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
+        addArcLinesMirrored(lines, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
+
+        float RBr = 0.82f;
+        ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
+        addArcLinesMirrored(lines, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
+
+        float LBr = 2.0f;
+        ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
+        addArcLinesMirrored(lines, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
+
+        addLineSegmentMirrored(lines, apLR.pStart, apRB.pEnd);
+        addLineSegmentMirrored(lines, apRB.pStart, apLB.pEnd);
+        addLineSegmentMirrored(lines, apLB.pStart, apLR.pEnd);
     }
 
-    void update(float dt, std::uint8_t input)
+#if 0
+    // Draw a border that represents the gameplay area
     {
-        if (input & BUTTON_L)
-        {
-            flippers[0].angularVelocity = maxAngularVelocity;
-        }
-        else
-        {
-            flippers[0].angularVelocity = -maxAngularVelocity;
-        }
-    
-        if (input & BUTTON_R)
-        {
-            flippers[1].angularVelocity = maxAngularVelocity;
-        }
-        else
-        {
-            flippers[1].angularVelocity = -maxAngularVelocity;
-        }
-    
-        for (auto& flipper : flippers)
-        {
-            flipper.orientation += flipper.angularVelocity * dt;
-            flipper.orientation = glm::clamp(flipper.orientation, Flipper::minAngle, Flipper::maxAngle);
-            updateTransform(flipper);
-        }
+        constexpr float d{ 0.1f };
+        // bottom
+        addLine(lines, Line::horizontal(Constants::worldB + d));
+        // top
+        addLine(lines, Line::horizontal(Constants::worldT - d));
+        // left
+        addLine(lines, Line::vertical(Constants::worldL + d));
+        // right
+        addLine(lines, Line::vertical(Constants::worldR - d));
     }
-};
+#endif
+
+    glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
+
+    // left bottom arc
+    addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
+
+    glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
+    addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
+
+    Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
+    // addLine(lines, l3r);
+    Line l20 = l3r.parallel(-0.5f);
+    // addLine(lines, l20);
+    float plungerShuteWidth = 3.4f;
+    Line l21 = l20.parallel(-plungerShuteWidth);
+    // addLine(lines, l21);
+
+    glm::vec2 p20 = findIntersection(l20, worldB);
+    glm::vec2 p21 = findIntersection(l21, worldB);
+    float k20 = 48.0f;
+    glm::vec2 p22 = p20 + glm::vec2{0.0f, 1.0f} * k20;
+    glm::vec2 p23 = p21 + glm::vec2{0.0f, 1.0f} * k20;
+    // Plunger shaft
+    addLineSegment(lines, p20, p22);
+    addLineSegment(lines, p21, p23);
+
+    // Top of the plunger
+    glm::vec2 p30 = findIntersection(ll1, l20);
+    glm::vec2 p31 = findIntersection(ll1, l21);
+    addLineSegment(lines, p30, p31);
+
+    float arc30r = 20.87f;
+    glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
+    Arc arc30{ arc30c, arc30r, 0.0f, glm::radians(90.0f) };
+    addArcLines(lines, arc30);
+
+    float arc31r = 20.87f - plungerShuteWidth;
+    Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
+    addArcLines(lines, arc31);
+
+    // Right upper wall
+    glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
+    glm::vec2 p11 = p10 + makeVec(glm::radians(31.0f), 5.3f);
+    glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
+    glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
+    glm::vec2 p14 = getArcEnd(arc31);
+    addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
+
+    addButton(lines, p9, p10, 0.5f);
+    addButton(lines, p10, p11, 0.5f);
+    addButton(lines, p11, p12, 0.3f);
+    addButton(lines, p11, p12, 0.7f);
+    addButton(lines, p12, p13, 0.5f);
+
+    Ray r30{ p14, glm::normalize(p14-p13) };
+    glm::vec2 p15 = findIntersection(r30, arc30);
+    // right one-way wall
+    addLineSegment(lines, p14, p15);
+
+    glm::vec2 p40 = getArcEnd(arc30);
+    glm::vec2 p41 = p40 + glm::vec2{-7.68f, 0.0f};
+    // bridge between left and right arcs at the top of the table
+    addLineSegment(lines, p40, p41);
+    // addCircleLines(lines, {p41, 0.5f});
+
+    // left top big arc
+    Arc a50 = makeArc(p41, p7, 20.8f);
+    addArcLines(lines, a50);
+
+    // left small arc
+    Arc a51 = {a50.p, a50.r - plungerShuteWidth, glm::radians(105.0f), glm::radians(130.0f)};
+    addArcLines(lines, a51);
+
+    // left medium arc
+    Arc a52 = {a50.p, a50.r - plungerShuteWidth, glm::radians(150.0f), glm::radians(205.0f)};
+    addArcLines(lines, a52);
+
+    glm::vec2 a51s = getArcStart(a51);
+    Ray r51s{ a51.p, glm::normalize(a51s - a51.p) };
+    // addRay(lines, r51s);
+
+    glm::vec2 a51e = getArcEnd(a51);
+    Ray r51e{ a51.p, glm::normalize(a51e - a51.p) };
+    // addRay(lines, r51e);
+
+    glm::vec2 p50 = findIntersection(r51s, a50);
+    // left one-way wall
+    addLineSegment(lines, a51s, p50);
+
+    float w51 = 2.3f;
+    glm::vec2 p53 = a51s - r51s.d*w51;
+    glm::vec2 p54 = a51e - r51e.d*w51;
+
+    // left-top walled island
+    addLineStrip(lines, {a51s,p53,p54,a51e});
+    addButton(lines, p53, p54, 0.5f);
+
+    glm::vec2 a52s = getArcStart(a52);
+    glm::vec2 a52e = getArcEnd(a52);
+    glm::vec2 p60 = a52e + makeVec(glm::radians(-32.5f), 3.6f);
+    glm::vec2 p61 = p60 + makeVec(glm::radians(44.0f), 4.5f);
+    glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
+    // left-middle walled island
+    addLineStrip(lines, {a52e,p60,p61,p62,a52s});
+    addButton(lines, p61, p60, 0.5f);
+    addButton(lines, p62, p61, 0.5f);
+    addButton(lines, a52s, p62, 0.3f);
+    addButton(lines, a52s, p62, 0.7f);
+
+    float capsuleGap = 4.3f;
+    float leftCapsuleX = -0.7f;
+    float rightCapsuleX = leftCapsuleX + capsuleGap;
+    float capsuleY = p53.y;
+    addCapsuleLines(lines, {leftCapsuleX, capsuleY});
+    addCapsuleLines(lines, {rightCapsuleX, capsuleY});
+
+    // Central vertical symmetry line
+    //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
+
+    glm::vec2 pb1{-4.0f, 53.0f};
+    glm::vec2 pb2{pb1.x+10.7f, pb1.y+0.5f};
+    glm::vec2 pb3{pb1.x+5.5f, pb1.y-7.5f};
+    addPopBumperLines(lines, pb1);
+    addPopBumperLines(lines, pb2);
+    addPopBumperLines(lines, pb3);
+}
 
 static const char* const vertexCode = R"(
 #version 410
@@ -839,7 +801,6 @@ static std::vector<DefaultVertex> makeCircleVerts()
     return verts;
 }
 
-static Game game;
 static RenderData rd;
 
 static void render()
@@ -847,7 +808,7 @@ static void render()
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    for (const auto& c : game.circles)
+    for (const auto& c : circles)
     {
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
@@ -858,7 +819,7 @@ static void render()
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
     }
 
-    for (const auto& flipper : game.flippers)
+    for (const auto& flipper : flippers)
     {
         glUniformMatrix3fv(rd.modelLoc, 1, GL_FALSE, &flipper.transform[0][0]);
         glBindVertexArray(rd.flipperVao);
@@ -989,6 +950,14 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
+    // Ball's radius is 1.0f, everything is measured relative to that
+    circles.push_back({ {0.0f, 10.0f}, 1.0f });
+
+    flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
+    flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
+
+    constructLines();
+
     rd.program = createShaderProgram(vertexCode, fragmentCode);
 
     rd.modelLoc = glGetUniformLocation(rd.program, "model");
@@ -999,8 +968,8 @@ int main()
     assert(rd.viewLoc >= 0);
     assert(rd.projectionLoc >= 0);
 
-    rd.lineVao = createVao(game.lines);
-    rd.numLineVerts = static_cast<int>(game.lines.size());
+    rd.lineVao = createVao(lines);
+    rd.numLineVerts = static_cast<int>(lines.size());
 
     rd.circleVao = createVao(makeCircleVerts());
     rd.flipperVao = createVao(makeFlipperVerts());
@@ -1035,7 +1004,31 @@ int main()
             input |= BUTTON_R;
         }
 
-        game.update(dt, input);
+        if (input & BUTTON_L)
+        {
+            flippers[0].angularVelocity = maxAngularVelocity;
+        }
+        else
+        {
+            flippers[0].angularVelocity = -maxAngularVelocity;
+        }
+
+        if (input & BUTTON_R)
+        {
+            flippers[1].angularVelocity = maxAngularVelocity;
+        }
+        else
+        {
+            flippers[1].angularVelocity = -maxAngularVelocity;
+        }
+
+        for (auto& flipper : flippers)
+        {
+            flipper.orientation += flipper.angularVelocity * dt;
+            flipper.orientation = glm::clamp(flipper.orientation, Flipper::minAngle, Flipper::maxAngle);
+            updateTransform(flipper);
+        }
+
         render();
 
         glfwSwapBuffers(window);
