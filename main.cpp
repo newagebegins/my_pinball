@@ -426,10 +426,10 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-static std::vector<DefaultVertex> lines;
-
-void constructLines()
+std::vector<DefaultVertex> constructLines()
 {
+    std::vector<DefaultVertex> lines{};
+
     const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
     Line l0{ p0, Flipper::minAngle };
@@ -647,6 +647,8 @@ void constructLines()
     addPopBumperLines(lines, pb1);
     addPopBumperLines(lines, pb2);
     addPopBumperLines(lines, pb3);
+
+    return lines;
 }
 
 static const char* const vertexCode = R"(
@@ -965,7 +967,7 @@ int main()
     flippers.push_back(makeFlipper(glm::vec2{ -flipperX, flipperY }, true));
     flippers.push_back(makeFlipper(glm::vec2{  flipperX, flipperY }, false));
 
-    constructLines();
+    std::vector<DefaultVertex> lines = constructLines();
 
     rd->program = createShaderProgram(vertexCode, fragmentCode);
 
