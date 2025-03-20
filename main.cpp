@@ -703,31 +703,45 @@ struct Game
     }
 };
 
-namespace File
-{
-    static std::string readEntireFile(const char* path)
-    {
-        std::ifstream ifs{ path };
-        if (!ifs.is_open())
-        {
-            std::cerr << "Failed to open the file: " << path << '\n';
-            std::exit(EXIT_FAILURE);
-        }
-        std::stringstream s{};
-        s << ifs.rdbuf();
-        return s.str();
-    }
-}
+static const char* const vertexCode = R"(
+#version 410
 
-static GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
+layout (location = 0) in vec2 inPos;
+layout (location = 1) in vec3 inCol;
+
+out vec3 col;
+
+uniform mat3 model;
+uniform mat3 view;
+uniform mat4 projection;
+
+void main()
+{
+    col = inCol;
+    gl_Position = projection * vec4(view * model * vec3(inPos, 1.0), 1.0);
+}
+)";
+
+static const char* const fragmentCode = R"(
+#version 410
+
+in vec3 col;
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = vec4(col, 1.0);
+}
+)";
+
+static GLuint createShaderProgram(const char* vCode, const char* fCode)
 {
     GLchar infoLog[512];
     GLint success;
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    std::string vStr = File::readEntireFile(vertexPath);
-    const char* vsCode = vStr.c_str();
-    glShaderSource(vs, 1, &vsCode, nullptr);
+    glShaderSource(vs, 1, &vCode, nullptr);
     glCompileShader(vs);
     glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
     if (!success)
@@ -738,9 +752,7 @@ static GLuint createShaderProgram(const char* vertexPath, const char* fragmentPa
     }
 
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    std::string fStr = File::readEntireFile(fragmentPath);
-    const char* fsCode = fStr.c_str();
-    glShaderSource(fs, 1, &fsCode, nullptr);
+    glShaderSource(fs, 1, &fCode, nullptr);
     glCompileShader(fs);
     glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
     if (!success)
@@ -997,7 +1009,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    rd.program = createShaderProgram("assets/default_v.glsl", "assets/default_f.glsl");
+    rd.program = createShaderProgram(vertexCode, fragmentCode);
 
     rd.modelLoc = glGetUniformLocation(rd.program, "model");
     rd.viewLoc = glGetUniformLocation(rd.program, "view");
