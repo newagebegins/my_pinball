@@ -117,8 +117,15 @@ Flipper makeFlipper(glm::vec2 position, bool isLeft)
     return f;
 }
 
+struct Ball
+{
+    glm::vec2 p;
+    glm::vec2 v;
+};
+
 struct SimState
 {
+    Ball ball;
     Flipper flippers[numFlippers];
 };
 
@@ -937,8 +944,17 @@ glm::mat4 myOrtho(float l, float r, float b, float t, float n, float f)
     return m;
 }
 
+void updateBall(Ball* b, float dt)
+{
+    glm::vec2 a = {0.0f, -10.0f};
+    b->v += a * dt;
+    b->p += b->v * dt;
+}
+
 void simulate(float dt, SimState* s)
 {
+    updateBall(&s->ball, dt);
+
     for (int i = 0; i < numFlippers; ++ i)
     {
         Flipper *f = &s->flippers[i];
@@ -1036,10 +1052,8 @@ int main()
     RenderData* rd = &g_rd;
     StuffToRender* s = &g_stuffToRender;
 
-    // Ball's radius is 1.0f, everything is measured relative to that
-    s->circles[0] = {{0.0f, 10.0f}, 1.0f};
-
-    SimState simState;
+    SimState simState{};
+    simState.ball.p = {0.0f, 10.0f};
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
@@ -1085,6 +1099,9 @@ int main()
             accum -= simDt;
             simulate(simDt, &simState);
         }
+
+        // Ball's radius is 1.0f, everything is measured relative to that
+        s->circles[0] = {simState.ball.p, 1.0f};
 
         for (int i = 0; i < numFlippers; ++i)
         {
