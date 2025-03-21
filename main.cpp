@@ -948,9 +948,8 @@ void simulate(float dt, SimState* s)
     }
 }
 
-void setupRenderData(RenderData *rd)
+void initRenderData(RenderData *rd)
 {
-
     std::vector<DefaultVertex> lines = constructLines();
 
     rd->program = createShaderProgram(vertexCode, fragmentCode);
@@ -1022,7 +1021,7 @@ int main()
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
-    setupRenderData(rd);
+    initRenderData(rd);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
