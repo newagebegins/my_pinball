@@ -948,6 +948,29 @@ void simulate(float dt, SimState* s)
     }
 }
 
+void setupRenderData(RenderData *rd)
+{
+
+    std::vector<DefaultVertex> lines = constructLines();
+
+    rd->program = createShaderProgram(vertexCode, fragmentCode);
+
+    rd->modelLoc = glGetUniformLocation(rd->program, "model");
+    rd->viewLoc = glGetUniformLocation(rd->program, "view");
+    rd->projectionLoc = glGetUniformLocation(rd->program, "projection");
+
+    assert(rd->modelLoc >= 0);
+    assert(rd->viewLoc >= 0);
+    assert(rd->projectionLoc >= 0);
+
+    rd->lineVao = createVao(lines);
+    rd->numLineVerts = static_cast<int>(lines.size());
+
+    rd->circleVao = createVao(makeCircleVerts());
+    rd->flipperVao = createVao(makeFlipperVerts());
+
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -999,23 +1022,7 @@ int main()
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
-    std::vector<DefaultVertex> lines = constructLines();
-
-    rd->program = createShaderProgram(vertexCode, fragmentCode);
-
-    rd->modelLoc = glGetUniformLocation(rd->program, "model");
-    rd->viewLoc = glGetUniformLocation(rd->program, "view");
-    rd->projectionLoc = glGetUniformLocation(rd->program, "projection");
-
-    assert(rd->modelLoc >= 0);
-    assert(rd->viewLoc >= 0);
-    assert(rd->projectionLoc >= 0);
-
-    rd->lineVao = createVao(lines);
-    rd->numLineVerts = static_cast<int>(lines.size());
-
-    rd->circleVao = createVao(makeCircleVerts());
-    rd->flipperVao = createVao(makeFlipperVerts());
+    setupRenderData(rd);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
