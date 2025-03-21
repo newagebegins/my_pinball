@@ -16,6 +16,8 @@
 #include <sstream>
 #include <vector>
 
+constexpr float simFps{ 120.0f };
+constexpr float simDt{ 1.0f / simFps };
 struct Circle
 {
     glm::vec2 center;
@@ -110,6 +112,11 @@ Flipper makeFlipper(glm::vec2 position, bool isLeft)
     updateTransform(&f);
     return f;
 }
+
+struct SimState
+{
+    Flipper flippers[numFlippers];
+};
 
 struct Line
 {
@@ -925,6 +932,17 @@ glm::mat4 myOrtho(float l, float r, float b, float t, float n, float f)
     return m;
 }
 
+void simulate(float dt, SimState* s)
+{
+    for (int i = 0; i < numFlippers; ++ i)
+    {
+        Flipper *f = &s->flippers[i];
+        f->orientation += f->angularVelocity * dt;
+        f->orientation = glm::clamp(f->orientation, Flipper::minAngle, Flipper::maxAngle);
+        updateTransform(f);
+    }
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -971,9 +989,9 @@ int main()
     // Ball's radius is 1.0f, everything is measured relative to that
     rd->circles[0] = {{0.0f, 10.0f}, 1.0f};
 
-    Flipper flippers[numFlippers];
-    flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
-    flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
+    SimState simState;
+    simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
+    simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
     std::vector<DefaultVertex> lines = constructLines();
 
@@ -1000,12 +1018,15 @@ int main()
     glUniformMatrix3fv(rd->viewLoc, 1, GL_FALSE, &identity[0][0]);
     glUniformMatrix4fv(rd->projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
+    float accum = 0.0f;
+
     while (!glfwWindowShouldClose(window))
     {
         static float prevTime{ static_cast<float>(glfwGetTime()) };
         const float currentTime{ static_cast<float>(glfwGetTime()) };
         const float dt = currentTime - prevTime;
         prevTime = currentTime;
+        accum += dt;
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
@@ -1025,33 +1046,31 @@ int main()
 
         if (input & BUTTON_L)
         {
-            flippers[0].angularVelocity = maxAngularVelocity;
+            simState.flippers[0].angularVelocity = maxAngularVelocity;
         }
         else
         {
-            flippers[0].angularVelocity = -maxAngularVelocity;
+            simState.flippers[0].angularVelocity = -maxAngularVelocity;
         }
 
         if (input & BUTTON_R)
         {
-            flippers[1].angularVelocity = maxAngularVelocity;
+            simState.flippers[1].angularVelocity = maxAngularVelocity;
         }
         else
         {
-            flippers[1].angularVelocity = -maxAngularVelocity;
+            simState.flippers[1].angularVelocity = -maxAngularVelocity;
         }
 
-        for (int i = 0; i < numFlippers; ++ i)
+        while (accum >= simDt)
         {
-            Flipper *f = &flippers[i];
-            f->orientation += f->angularVelocity * dt;
-            f->orientation = glm::clamp(f->orientation, Flipper::minAngle, Flipper::maxAngle);
-            updateTransform(f);
+            accum -= simDt;
+            simulate(simDt, &simState);
         }
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            rd->flipperTransforms[i] = flippers[i].transform;
+            rd->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
         render(rd);
