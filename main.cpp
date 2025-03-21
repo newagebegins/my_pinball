@@ -970,6 +970,28 @@ void initRenderData(RenderData *rd)
 
 }
 
+void handleInput(SimState* s, uint8_t input)
+{
+
+    if (input & BUTTON_L)
+    {
+        s->flippers[0].angularVelocity = maxAngularVelocity;
+    }
+    else
+    {
+        s->flippers[0].angularVelocity = -maxAngularVelocity;
+    }
+
+    if (input & BUTTON_R)
+    {
+        s->flippers[1].angularVelocity = maxAngularVelocity;
+    }
+    else
+    {
+        s->flippers[1].angularVelocity = -maxAngularVelocity;
+    }
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -1056,23 +1078,7 @@ int main()
             input |= BUTTON_R;
         }
 
-        if (input & BUTTON_L)
-        {
-            simState.flippers[0].angularVelocity = maxAngularVelocity;
-        }
-        else
-        {
-            simState.flippers[0].angularVelocity = -maxAngularVelocity;
-        }
-
-        if (input & BUTTON_R)
-        {
-            simState.flippers[1].angularVelocity = maxAngularVelocity;
-        }
-        else
-        {
-            simState.flippers[1].angularVelocity = -maxAngularVelocity;
-        }
+        handleInput(&simState, input);
 
         while (accum >= simDt)
         {
