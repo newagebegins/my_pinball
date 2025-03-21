@@ -18,6 +18,7 @@
 
 constexpr float simFps{ 120.0f };
 constexpr float simDt{ 1.0f / simFps };
+
 struct Circle
 {
     glm::vec2 center;
@@ -40,7 +41,10 @@ struct RenderData
 
     GLuint circleVao;
     GLuint flipperVao;
+};
 
+struct StuffToRender
+{
     Circle circles[numCircles];
     glm::mat3 flipperTransforms[numFlippers];
 };
@@ -811,15 +815,16 @@ static std::vector<DefaultVertex> makeCircleVerts()
 }
 
 static RenderData g_rd;
+static StuffToRender g_stuffToRender;
 
-static void render(RenderData* rd)
+static void render(RenderData* rd, StuffToRender* s)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     for (int i = 0; i < numCircles; ++i)
     {
-        Circle c = rd->circles[i];
+        Circle c = s->circles[i];
 
         glm::mat3 model{ 1.0f };
         model = glm::translate(model, c.center);
@@ -832,7 +837,7 @@ static void render(RenderData* rd)
 
     for (int i = 0; i < numFlippers; ++i)
     {
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &rd->flipperTransforms[i][0][0]);
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &s->flipperTransforms[i][0][0]);
         glBindVertexArray(rd->flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
@@ -916,7 +921,7 @@ static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int heigh
 
 static void windowRefreshCallback(GLFWwindow* window)
 {
-    render(&g_rd);
+    render(&g_rd, &g_stuffToRender);
     glfwSwapBuffers(window);
 }
 
@@ -985,9 +990,10 @@ int main()
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
     RenderData* rd = &g_rd;
+    StuffToRender* s = &g_stuffToRender;
 
     // Ball's radius is 1.0f, everything is measured relative to that
-    rd->circles[0] = {{0.0f, 10.0f}, 1.0f};
+    s->circles[0] = {{0.0f, 10.0f}, 1.0f};
 
     SimState simState;
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
@@ -1070,10 +1076,10 @@ int main()
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            rd->flipperTransforms[i] = simState.flippers[i].transform;
+            s->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        render(rd);
+        render(rd, s);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
