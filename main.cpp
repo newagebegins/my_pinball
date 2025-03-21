@@ -913,6 +913,18 @@ static void windowRefreshCallback(GLFWwindow* window)
     glfwSwapBuffers(window);
 }
 
+glm::mat4 myOrtho(float l, float r, float b, float t, float n, float f)
+{
+    glm::mat4 m{ 1.0f };
+    m[0][0] = 2.0f/(r-l);
+    m[1][1] = 2.0f/(t-b);
+    m[2][2] = -2.0f/(f-n);
+    m[3][0] = -(r+l)/(r-l);
+    m[3][1] = -(t+b)/(t-b);
+    m[3][2] = -(f+n)/(f-n);
+    return m;
+}
+
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -982,7 +994,7 @@ int main()
     rd->flipperVao = createVao(makeFlipperVerts());
 
     const glm::mat3 identity{ 1.0f };
-    const glm::mat4 projection{ glm::ortho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
+    const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
     glUseProgram(rd->program);
     glUniformMatrix3fv(rd->viewLoc, 1, GL_FALSE, &identity[0][0]);
