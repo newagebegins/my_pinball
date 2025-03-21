@@ -16,8 +16,13 @@
 #include <sstream>
 #include <vector>
 
+// Ball's radius is 1.0f, everything is measured relative to that
+constexpr float ballRadius = 1.0f;
+
 constexpr float simFps{ 120.0f };
 constexpr float simDt{ 1.0f / simFps };
+constexpr float minFps = 10.0f;
+constexpr float maxDt = 1.0f / minFps;
 
 struct Circle
 {
@@ -89,6 +94,8 @@ struct Flipper
 {
     static constexpr float r0{ 1.1f };
     static constexpr float r1{ 0.7f };
+    static constexpr float width{ 8.0f };
+    static constexpr float d{ width - r0 - r1 };
 
     static constexpr float minAngle{ glm::radians(-38.0f) };
     static constexpr float maxAngle{ glm::radians(33.0f) };
@@ -104,7 +111,7 @@ void updateTransform(Flipper* f)
 {
     f->transform = glm::mat3{ 1.0f };
     f->transform = glm::translate(f->transform, f->position);
-    f->transform = glm::rotate(f->transform, f->orientation * f->scaleX);
+    f->transform = glm::rotate(f->transform, f->orientation);
     f->transform = glm::scale(f->transform, { f->scaleX, 1.0f });
 }
 
@@ -769,9 +776,7 @@ constexpr int numFlipperVerts{ (numFlipperCircleSegments1 + 1) + (numFlipperCirc
 
 static std::vector<DefaultVertex> makeFlipperVerts()
 {
-    constexpr float width{ 8.0f };
-    constexpr float d{ width - Flipper::r0 - Flipper::r1 };
-    constexpr float cosA{ (Flipper::r0 - Flipper::r1) / d };
+    constexpr float cosA{ (Flipper::r0 - Flipper::r1) / Flipper::d };
     const float a{ std::acos(cosA) };
     constexpr glm::vec3 color{ 1.0f, 1.0f, 1.0f };
 
@@ -792,7 +797,7 @@ static std::vector<DefaultVertex> makeFlipperVerts()
     {
         const float t{ static_cast<float>(i) / numFlipperCircleSegments2 };
         const float angle{ -a + t * 2.0f * a };
-        const float x{ d + Flipper::r1 * std::cos(angle) };
+        const float x{ Flipper::d + Flipper::r1 * std::cos(angle) };
         const float y{ Flipper::r1 * std::sin(angle) };
         verts[nextVert++] = { { x, y }, color };
     }
@@ -951,6 +956,21 @@ void updateBall(Ball* b, float dt)
     b->p += b->v * dt;
 }
 
+struct Collision
+{
+    glm::vec2 normal;
+    float penetration;
+};
+
+void resolveCollision(Ball* ball, Collision c, float relativeNormalVelocity, float e = 0.5f)
+{
+    if (relativeNormalVelocity <= 0.0f)
+    {
+        ball->p += c.normal * c.penetration;
+        ball->v += -(1.0f + e) * relativeNormalVelocity * c.normal;
+    }
+}
+
 void simulate(float dt, SimState* s)
 {
     updateBall(&s->ball, dt);
@@ -959,8 +979,46 @@ void simulate(float dt, SimState* s)
     {
         Flipper *f = &s->flippers[i];
         f->orientation += f->angularVelocity * dt;
-        f->orientation = glm::clamp(f->orientation, Flipper::minAngle, Flipper::maxAngle);
+        if (f->orientation < Flipper::minAngle)
+        {
+            f->orientation = Flipper::minAngle;
+        }
+        else if (f->orientation > Flipper::maxAngle)
+        {
+            f->orientation = Flipper::maxAngle;
+        }
+        if (f->orientation == Flipper::minAngle || f->orientation == Flipper::maxAngle)
+        {
+            f->angularVelocity = 0.0f;
+        }
         updateTransform(f);
+    }
+
+    // check collision of ball and flippers
+    for (int i{ 0 }; i < numFlippers; ++i)
+    {
+        Flipper* flipper{ &s->flippers[i] };
+        Collision c{};
+        glm::vec2 p0{ flipper->transform * glm::vec3(0.0f, 0.0f, 1.0f) };
+        glm::vec2 p1{ flipper->transform * glm::vec3(Flipper::d, 0.0f, 1.0f) };
+        glm::vec2 line{ p1 - p0 };
+        glm::vec2 lineDir{ glm::normalize(line) };
+        float t{ glm::clamp(glm::dot(s->ball.p - p0, lineDir) / glm::length(line), 0.0f, 1.0f) };
+        float r{ glm::mix(Flipper::r0, Flipper::r1, t) };
+        glm::vec2 closestPoint{ p0 + line * t };
+        //g_stuffToRender.circles[i + 1] = { closestPoint, r };
+        float dist{ glm::distance(closestPoint, s->ball.p) };
+        c.penetration = (r + ballRadius) - dist;
+        c.normal = glm::normalize(s->ball.p - closestPoint);
+        if (c.penetration >= 0.0f)
+        {
+            glm::vec2 pointOnFlipperWorld{ s->ball.p - c.normal * (ballRadius - c.penetration) };
+            glm::vec2 pointOnFlipperLocal{ pointOnFlipperWorld - flipper->position };
+            glm::vec2 pointOnFlipperVelocity{ flipper->angularVelocity * perp(pointOnFlipperLocal) };
+            glm::vec2 relativeVelocity{ s->ball.v - pointOnFlipperVelocity };
+            float relativeNormalVelocity{ glm::dot(relativeVelocity, c.normal) };
+            resolveCollision(&s->ball, c, relativeNormalVelocity);
+        }
     }
 }
 
@@ -1000,11 +1058,11 @@ void handleInput(SimState* s, uint8_t input)
 
     if (input & BUTTON_R)
     {
-        s->flippers[1].angularVelocity = maxAngularVelocity;
+        s->flippers[1].angularVelocity = -maxAngularVelocity;
     }
     else
     {
-        s->flippers[1].angularVelocity = -maxAngularVelocity;
+        s->flippers[1].angularVelocity = maxAngularVelocity;
     }
 }
 
@@ -1053,7 +1111,7 @@ int main()
     StuffToRender* s = &g_stuffToRender;
 
     SimState simState{};
-    simState.ball.p = {0.0f, 10.0f};
+    simState.ball.p = {6.0f, 10.0f};
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
@@ -1071,8 +1129,13 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         static float prevTime{ static_cast<float>(glfwGetTime()) };
-        const float currentTime{ static_cast<float>(glfwGetTime()) };
-        const float dt = currentTime - prevTime;
+        float currentTime{ static_cast<float>(glfwGetTime()) };
+        float dt = currentTime - prevTime;
+        if (dt > maxDt)
+        {
+            dt = maxDt;
+        }
+        //dt /= 20.0f;
         prevTime = currentTime;
         accum += dt;
 
@@ -1100,8 +1163,7 @@ int main()
             simulate(simDt, &simState);
         }
 
-        // Ball's radius is 1.0f, everything is measured relative to that
-        s->circles[0] = {simState.ball.p, 1.0f};
+        s->circles[0] = {simState.ball.p, ballRadius};
 
         for (int i = 0; i < numFlippers; ++i)
         {
