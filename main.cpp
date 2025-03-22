@@ -55,6 +55,8 @@ struct StuffToRender
 {
     Circle circles[numCircles];
     glm::mat3 flipperTransforms[numFlippers];
+
+    float plungerX;
     float plungerScaleY;
 };
 
@@ -459,7 +461,14 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-std::vector<DefaultVertex> constructLines()
+struct Table
+{
+    std::vector<DefaultVertex> lines;
+    float plungerX;
+    float plungerTopY;
+};
+
+Table constructTable()
 {
     std::vector<DefaultVertex> lines{};
 
@@ -585,7 +594,8 @@ std::vector<DefaultVertex> constructLines()
     glm::vec2 p30 = findIntersection(ll1, l20);
     glm::vec2 p31 = findIntersection(ll1, l21);
     addLineSegment(lines, p30, p31);
-    //plungerX = (p30 + p31) / 2.0f;
+    float plungerX = ((p30 + p31) / 2.0f).x;
+    float plungerTopY = p30.y;
 
     float arc30r = 20.87f;
     glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
@@ -682,7 +692,12 @@ std::vector<DefaultVertex> constructLines()
     addPopBumperLines(lines, pb2);
     addPopBumperLines(lines, pb3);
 
-    return lines;
+    Table table;
+    table.lines = lines;
+    table.plungerX = plungerX;
+    table.plungerTopY = plungerTopY;
+
+    return table;
 }
 
 static const char* const vertexCode = R"(
@@ -893,7 +908,7 @@ static void render(RenderData* rd, StuffToRender* s)
 
     // draw the plunger
     glm::mat3 model = glm::mat3(1.0f);
-    model = glm::translate(model, glm::vec2{0.0f, 0.0f});
+    model = glm::translate(model, glm::vec2{s->plungerX, 0.0f});
     model = glm::scale(model, glm::vec2(1.0f, s->plungerScaleY));
     glBindVertexArray(rd->plungerVao);
     glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &model[0][0]);
@@ -1164,23 +1179,25 @@ int main()
     RenderData* rd = &g_rd;
     StuffToRender* s = &g_stuffToRender;
 
-    std::vector<DefaultVertex> lines = constructLines();
+    Table table = constructTable();
+
+    s->plungerX = table.plungerX;
 
     SimState simState{};
     simState.ball.p = {6.0f, 10.0f};
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
-    assert(lines.size() % 2 == 0);
-    simState.numLineSegments = (int)lines.size() / 2;
+    assert(table.lines.size() % 2 == 0);
+    simState.numLineSegments = (int)table.lines.size() / 2;
     simState.lineSegments = (LineSegment*)malloc(simState.numLineSegments * sizeof(simState.lineSegments[0]));
     for (int i = 0; i < simState.numLineSegments; ++i)
     {
-        simState.lineSegments[i].p0 = lines[i*2].pos;
-        simState.lineSegments[i].p1 = lines[i*2 + 1].pos;
+        simState.lineSegments[i].p0 = table.lines[i*2].pos;
+        simState.lineSegments[i].p1 = table.lines[i*2 + 1].pos;
     }
 
-    initRenderData(rd, lines);
+    initRenderData(rd, table.lines);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
@@ -1235,7 +1252,7 @@ int main()
             s->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        s->plungerScaleY = 5.0f;
+        s->plungerScaleY = table.plungerTopY;
 
         render(rd, s);
 
