@@ -16,6 +16,8 @@
 #include <sstream>
 #include <vector>
 
+#include <stdlib.h>
+
 // Ball's radius is 1.0f, everything is measured relative to that
 constexpr float ballRadius = 1.0f;
 
@@ -130,10 +132,19 @@ struct Ball
     glm::vec2 v;
 };
 
+struct LineSegment
+{
+    glm::vec2 p0;
+    glm::vec2 p1;
+};
+
 struct SimState
 {
     Ball ball;
     Flipper flippers[numFlippers];
+
+    LineSegment* lineSegments;
+    int numLineSegments;
 };
 
 struct Line
@@ -956,18 +967,30 @@ void updateBall(Ball* b, float dt)
     b->p += b->v * dt;
 }
 
-struct Collision
-{
-    glm::vec2 normal;
-    float penetration;
-};
-
-void resolveCollision(Ball* ball, Collision c, float relativeNormalVelocity, float e = 0.5f)
+void resolveCollision(Ball* ball, glm::vec2 normal, float penetration, float relativeNormalVelocity, float e = 0.5f)
 {
     if (relativeNormalVelocity <= 0.0f)
     {
-        ball->p += c.normal * c.penetration;
-        ball->v += -(1.0f + e) * relativeNormalVelocity * c.normal;
+        ball->p += normal * penetration;
+        ball->v += -(1.0f + e) * relativeNormalVelocity * normal;
+    }
+}
+
+void checkCollisionBallLineSegment(Ball* ball, glm::vec2 p0, glm::vec2 p1)
+{
+    glm::vec2 L = p1 - p0;
+    float segmentLength = glm::length(L);
+    glm::vec2 dir = L/segmentLength;
+    float t = glm::clamp(glm::dot(ball->p - p0, dir), 0.0f, segmentLength);
+    glm::vec2 closestPoint = p0 + t * dir;
+    float dist = glm::distance(ball->p, closestPoint);
+    float penetration = ballRadius - dist;
+    if (penetration >= 0.0f)
+    {
+        glm::vec2 normal = glm::normalize(ball->p - closestPoint);
+        glm::vec2 relativeVelocity = ball->v; // line segment is stationary
+        float relativeNormalVelocity = glm::dot(relativeVelocity, normal);
+        resolveCollision(ball, normal, penetration, relativeNormalVelocity);
     }
 }
 
@@ -998,7 +1021,6 @@ void simulate(float dt, SimState* s)
     for (int i{ 0 }; i < numFlippers; ++i)
     {
         Flipper* flipper{ &s->flippers[i] };
-        Collision c{};
         glm::vec2 p0{ flipper->transform * glm::vec3(0.0f, 0.0f, 1.0f) };
         glm::vec2 p1{ flipper->transform * glm::vec3(Flipper::d, 0.0f, 1.0f) };
         glm::vec2 line{ p1 - p0 };
@@ -1006,26 +1028,28 @@ void simulate(float dt, SimState* s)
         float t{ glm::clamp(glm::dot(s->ball.p - p0, lineDir) / glm::length(line), 0.0f, 1.0f) };
         float r{ glm::mix(Flipper::r0, Flipper::r1, t) };
         glm::vec2 closestPoint{ p0 + line * t };
-        //g_stuffToRender.circles[i + 1] = { closestPoint, r };
         float dist{ glm::distance(closestPoint, s->ball.p) };
-        c.penetration = (r + ballRadius) - dist;
-        c.normal = glm::normalize(s->ball.p - closestPoint);
-        if (c.penetration >= 0.0f)
+        float penetration = (r + ballRadius) - dist;
+        glm::vec2 normal = glm::normalize(s->ball.p - closestPoint);
+        if (penetration >= 0.0f)
         {
-            glm::vec2 pointOnFlipperWorld{ s->ball.p - c.normal * (ballRadius - c.penetration) };
+            glm::vec2 pointOnFlipperWorld{ s->ball.p - normal * (ballRadius - penetration) };
             glm::vec2 pointOnFlipperLocal{ pointOnFlipperWorld - flipper->position };
             glm::vec2 pointOnFlipperVelocity{ flipper->angularVelocity * perp(pointOnFlipperLocal) };
             glm::vec2 relativeVelocity{ s->ball.v - pointOnFlipperVelocity };
-            float relativeNormalVelocity{ glm::dot(relativeVelocity, c.normal) };
-            resolveCollision(&s->ball, c, relativeNormalVelocity);
+            float relativeNormalVelocity{ glm::dot(relativeVelocity, normal) };
+            resolveCollision(&s->ball, normal, penetration, relativeNormalVelocity);
         }
+    }
+
+    for (int i = 0; i < s->numLineSegments; ++i)
+    {
+        checkCollisionBallLineSegment(&s->ball, s->lineSegments[i].p0, s->lineSegments[i].p1);
     }
 }
 
-void initRenderData(RenderData *rd)
+void initRenderData(RenderData *rd, const std::vector<DefaultVertex>& lines)
 {
-    std::vector<DefaultVertex> lines = constructLines();
-
     rd->program = createShaderProgram(vertexCode, fragmentCode);
 
     rd->modelLoc = glGetUniformLocation(rd->program, "model");
@@ -1110,12 +1134,23 @@ int main()
     RenderData* rd = &g_rd;
     StuffToRender* s = &g_stuffToRender;
 
+    std::vector<DefaultVertex> lines = constructLines();
+
     SimState simState{};
     simState.ball.p = {6.0f, 10.0f};
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
-    initRenderData(rd);
+    assert(lines.size() % 2 == 0);
+    simState.numLineSegments = (int)lines.size() / 2;
+    simState.lineSegments = (LineSegment*)malloc(simState.numLineSegments * sizeof(simState.lineSegments[0]));
+    for (int i = 0; i < simState.numLineSegments; ++i)
+    {
+        simState.lineSegments[i].p0 = lines[i*2].pos;
+        simState.lineSegments[i].p1 = lines[i*2 + 1].pos;
+    }
+
+    initRenderData(rd, lines);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
