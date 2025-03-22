@@ -874,7 +874,7 @@ static std::vector<DefaultVertex> makePlungerVerts()
     return verts;
 }
 
-static RenderData g_rd;
+static RenderData g_renderData;
 static StuffToRender g_stuffToRender;
 
 static void render(RenderData* rd, StuffToRender* s)
@@ -989,7 +989,7 @@ static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int heigh
 
 static void windowRefreshCallback(GLFWwindow* window)
 {
-    render(&g_rd, &g_stuffToRender);
+    render(&g_renderData, &g_stuffToRender);
     glfwSwapBuffers(window);
 }
 
@@ -1176,12 +1176,12 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    RenderData* rd = &g_rd;
-    StuffToRender* s = &g_stuffToRender;
+    RenderData* renderData = &g_renderData;
+    StuffToRender* stuffToRender = &g_stuffToRender;
 
     Table table = constructTable();
 
-    s->plungerX = table.plungerX;
+    stuffToRender->plungerX = table.plungerX;
 
     SimState simState{};
     simState.ball.p = {6.0f, 10.0f};
@@ -1197,14 +1197,14 @@ int main()
         simState.lineSegments[i].p1 = table.lines[i*2 + 1].pos;
     }
 
-    initRenderData(rd, table.lines);
+    initRenderData(renderData, table.lines);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
-    glUseProgram(rd->program);
-    glUniformMatrix3fv(rd->viewLoc, 1, GL_FALSE, &identity[0][0]);
-    glUniformMatrix4fv(rd->projectionLoc, 1, GL_FALSE, &projection[0][0]);
+    glUseProgram(renderData->program);
+    glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &identity[0][0]);
+    glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection[0][0]);
 
     float accum = 0.0f;
 
@@ -1245,16 +1245,16 @@ int main()
             simulate(simDt, &simState);
         }
 
-        s->circles[0] = {simState.ball.p, ballRadius};
+        stuffToRender->circles[0] = {simState.ball.p, ballRadius};
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            s->flipperTransforms[i] = simState.flippers[i].transform;
+            stuffToRender->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        s->plungerScaleY = table.plungerTopY;
+        stuffToRender->plungerScaleY = table.plungerTopY;
 
-        render(rd, s);
+        render(renderData, stuffToRender);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
