@@ -48,12 +48,14 @@ struct RenderData
 
     GLuint circleVao;
     GLuint flipperVao;
+    GLuint plungerVao;
 };
 
 struct StuffToRender
 {
     Circle circles[numCircles];
     glm::mat3 flipperTransforms[numFlippers];
+    float plungerScaleY;
 };
 
 namespace Constants
@@ -253,13 +255,13 @@ void addLineStripMirrored(std::vector<DefaultVertex>& verts, const std::vector<g
     addLineStrip(verts, pts, -1.0f, color);
 }
 
-void addCircleLines(std::vector<DefaultVertex>& verts, Circle c)
+void addCircleLines(std::vector<DefaultVertex>& verts, glm::vec2 p, float r)
 {
     constexpr int numVerts{ 32 };
     glm::vec3 color{ 1.0f, 1.0f, 1.0f };
 
     DefaultVertex v0{
-        c.center + glm::vec2{ 1.0f, 0.0f } * c.radius,
+        p + glm::vec2{ 1.0f, 0.0f } * r,
         color,
     };
 
@@ -270,7 +272,7 @@ void addCircleLines(std::vector<DefaultVertex>& verts, Circle c)
         const float t{ static_cast<float>(i) / numVerts };
         const float angle{ t * twoPi };
         const DefaultVertex v {
-            c.center + glm::vec2{ std::cos(angle), std::sin(angle) } * c.radius,
+            p + glm::vec2{ std::cos(angle), std::sin(angle) } * r,
             color,
         };
         verts.push_back(v);
@@ -375,8 +377,7 @@ void addArcLinesMirrored(std::vector<DefaultVertex>& verts, const Arc& arc, int 
 void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 {
     glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
-    Circle c{ O, r };
-    addCircleLines(verts, c);
+    addCircleLines(verts, O, r);
 }
 
 glm::vec2 makeVec(float angle, float len)
@@ -436,8 +437,8 @@ void addPopBumperLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
     float rb{2.75f};
     float gap{0.45f};
     float rs{rb-gap};
-    addCircleLines(verts, {c, rb});
-    addCircleLines(verts, {c, rs});
+    addCircleLines(verts, c, rb);
+    addCircleLines(verts, c, rs);
 }
 
 void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, float t)
@@ -584,6 +585,7 @@ std::vector<DefaultVertex> constructLines()
     glm::vec2 p30 = findIntersection(ll1, l20);
     glm::vec2 p31 = findIntersection(ll1, l21);
     addLineSegment(lines, p30, p31);
+    //plungerX = (p30 + p31) / 2.0f;
 
     float arc30r = 20.87f;
     glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
@@ -837,6 +839,26 @@ static std::vector<DefaultVertex> makeCircleVerts()
     return verts;
 }
 
+constexpr int plungerNumSections{ 10 };
+constexpr int plungerNumVerts{ plungerNumSections + 2 };
+
+static std::vector<DefaultVertex> makePlungerVerts()
+{
+    std::vector<DefaultVertex> verts(plungerNumVerts);
+    constexpr float halfWidth{ 1.0f };
+    int n{ 0 };
+    verts[n++] = { glm::vec2(halfWidth, 1.0f), defCol };
+    verts[n++] = { glm::vec2(-halfWidth, 1.0f), defCol };
+    for (int i{ 1 }; i <= plungerNumSections; ++i)
+    {
+        const float x{ (i % 2 == 0) ? -halfWidth : halfWidth };
+        const float y{ 1.0f - (1.0f / plungerNumSections) * i };
+        verts[n++] = { glm::vec2(x, y), defCol };
+    }
+    assert(n == plungerNumVerts);
+    return verts;
+}
+
 static RenderData g_rd;
 static StuffToRender g_stuffToRender;
 
@@ -868,6 +890,14 @@ static void render(RenderData* rd, StuffToRender* s)
     glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &glm::mat3{1.0f}[0][0]);
     glBindVertexArray(rd->lineVao);
     glDrawArrays(GL_LINES, 0, rd->numLineVerts);
+
+    // draw the plunger
+    glm::mat3 model = glm::mat3(1.0f);
+    model = glm::translate(model, glm::vec2{0.0f, 0.0f});
+    model = glm::scale(model, glm::vec2(1.0f, s->plungerScaleY));
+    glBindVertexArray(rd->plungerVao);
+    glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &model[0][0]);
+    glDrawArrays(GL_LINE_STRIP, 0, plungerNumVerts);
 }
 
 static void APIENTRY glDebugOutput(
@@ -1065,7 +1095,7 @@ void initRenderData(RenderData *rd, const std::vector<DefaultVertex>& lines)
 
     rd->circleVao = createVao(makeCircleVerts());
     rd->flipperVao = createVao(makeFlipperVerts());
-
+    rd->plungerVao = createVao(makePlungerVerts());
 }
 
 void handleInput(SimState* s, uint8_t input)
@@ -1204,6 +1234,8 @@ int main()
         {
             s->flipperTransforms[i] = simState.flippers[i].transform;
         }
+
+        s->plungerScaleY = 5.0f;
 
         render(rd, s);
 
