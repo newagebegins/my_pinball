@@ -10,13 +10,12 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
-#include <string>
-#include <sstream>
-#include <vector>
 
 #include <stdlib.h>
+#include <stdio.h>
+
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
 // Ball's radius is 1.0f, everything is measured relative to that
 constexpr float ballRadius = 1.0f;
@@ -189,19 +188,20 @@ constexpr glm::vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr glm::vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 [[maybe_unused]] constexpr glm::vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
-void addLineSegment(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1)
+DefaultVertex* addLineSegment(DefaultVertex* ptr, glm::vec2 p0, glm::vec2 p1)
 {
-    verts.push_back({p0, defCol});
-    verts.push_back({p1, defCol});
+    *ptr++ = { p0, defCol };
+    *ptr++ = { p1, defCol };
+    return ptr;
 }
 
-void addLineSegmentMirrored(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, glm::vec3 color = defCol)
+DefaultVertex* addLineSegmentMirrored(DefaultVertex* ptr, glm::vec2 p0, glm::vec2 p1, glm::vec3 color = defCol)
 {
-    verts.push_back({p0, color});
-    verts.push_back({p1, color});
-
-    verts.push_back({{-p0.x, p0.y}, color});
-    verts.push_back({{-p1.x, p1.y}, color});
+    *ptr++ = { p0, color };
+    *ptr++ = { p1, color };
+    *ptr++ = { {-p0.x, p0.y}, color };
+    *ptr++ = { {-p1.x, p1.y}, color };
+    return ptr;
 }
 
 glm::vec2 findIntersection(Line L1, Line L2)
@@ -223,41 +223,44 @@ glm::vec2 findIntersection(Line L1, Line L2)
     return L1.p + L1.d * t1;
 }
 
-void addLine(std::vector<DefaultVertex>& verts, const Line& l, glm::vec3 color = auxCol)
+DefaultVertex* addLine(DefaultVertex* ptr, const Line& l, glm::vec3 color = auxCol)
 {
     constexpr float len{ 100.0f };
-    verts.push_back({l.p + l.d*len, color});
-    verts.push_back({l.p - l.d*len, color});
+    *ptr++ = {l.p + l.d*len, color};
+    *ptr++ = {l.p - l.d*len, color};
+    return ptr;
 }
 
-void addRay(std::vector<DefaultVertex>& verts, const Ray& r, glm::vec3 color = auxCol)
+DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, glm::vec3 color = auxCol)
 {
     constexpr float len{ 100.0f };
-    verts.push_back({r.p, color});
-    verts.push_back({r.p + r.d*len, color});
+    *ptr++ = {r.p, color};
+    *ptr++ = {r.p + r.d*len, color};
+    return ptr;
 }
 
-void addLineStrip(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2>& pts, float xScale = 1.0f, glm::vec3 color = defCol)
+DefaultVertex* addLineStrip(DefaultVertex* ptr, glm::vec2* pts, int numPts, float xScale = 1.0f, glm::vec3 color = defCol)
 {
-    std::size_t len = pts.size();
-    assert(len > 1);
-    verts.push_back({ {pts[0].x*xScale, pts[0].y}, color });
-    for (std::size_t i{1}; i < len-1; ++i)
+    assert(numPts > 1);
+    *ptr++ = { {pts[0].x*xScale, pts[0].y}, color };
+    for (std::size_t i{1}; i < numPts-1; ++i)
     {
         DefaultVertex v{{pts[i].x*xScale, pts[i].y}, color};
-        verts.push_back(v);
-        verts.push_back(v);
+        *ptr++ = v;
+        *ptr++ = v;
     }
-    verts.push_back({ {pts[len-1].x*xScale, pts[len-1].y}, color });
+    *ptr++ = { {pts[numPts-1].x*xScale, pts[numPts-1].y}, color };
+    return ptr;
 }
 
-void addLineStripMirrored(std::vector<DefaultVertex>& verts, const std::vector<glm::vec2>& pts, glm::vec3 color = defCol)
+DefaultVertex* addLineStripMirrored(DefaultVertex* ptr, glm::vec2* pts, int numPts, glm::vec3 color = defCol)
 {
-    addLineStrip(verts, pts, 1.0f, color);
-    addLineStrip(verts, pts, -1.0f, color);
+    ptr = addLineStrip(ptr, pts, numPts, 1.0f, color);
+    ptr = addLineStrip(ptr, pts, numPts, -1.0f, color);
+    return ptr;
 }
 
-void addCircleLines(std::vector<DefaultVertex>& verts, glm::vec2 p, float r)
+DefaultVertex* addCircleLines(DefaultVertex* ptr, glm::vec2 p, float r)
 {
     constexpr int numVerts{ 32 };
     glm::vec3 color{ 1.0f, 1.0f, 1.0f };
@@ -267,7 +270,7 @@ void addCircleLines(std::vector<DefaultVertex>& verts, glm::vec2 p, float r)
         color,
     };
 
-    verts.push_back(v0);
+    *ptr++ = v0;
 
     for (std::size_t i{ 1 }; i < numVerts; ++i)
     {
@@ -277,11 +280,12 @@ void addCircleLines(std::vector<DefaultVertex>& verts, glm::vec2 p, float r)
             p + glm::vec2{ std::cos(angle), std::sin(angle) } * r,
             color,
         };
-        verts.push_back(v);
-        verts.push_back(v);
+        *ptr++ = v;
+        *ptr++ = v;
     }
 
-    verts.push_back(v0);
+    *ptr++ = v0;
+    return ptr;
 }
 
 // P - intersection of two lines
@@ -339,10 +343,8 @@ ArcPoints findArcBetweenLines(glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
     return {Q, R};
 }
 
-std::vector<glm::vec2> getArcPoints(const Arc& arc, int numSteps = 32)
+DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol, float scaleX = 1.0f)
 {
-    std::vector<glm::vec2> verts{};
-
     assert(0.0f <= arc.start && arc.start < twoPi);
     assert(0.0f <= arc.end && arc.end < twoPi);
 
@@ -359,27 +361,28 @@ std::vector<glm::vec2> getArcPoints(const Arc& arc, int numSteps = 32)
         const float angle{ glm::mix(start, end, t) };
         float x = arc.p.x + std::cos(angle) * arc.r;
         float y = arc.p.y + std::sin(angle) * arc.r;
-        verts.push_back({x,y});
+        DefaultVertex v = { {x*scaleX, y}, color };
+        *ptr++ = v;
+        if (i > 0 && i < numSteps - 1)
+        {
+            *ptr++ = v;
+        }
     }
 
-    return verts;
+    return ptr;
 }
 
-void addArcLines(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
+DefaultVertex* addArcLinesMirrored(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
 {
-    auto pts{ getArcPoints(arc, numSteps) };
-    addLineStrip(verts, pts, 1.0f, color);
+    ptr = addArcLines(ptr, arc, numSteps, color, 1.0f);
+    ptr = addArcLines(ptr, arc, numSteps, color, -1.0f);
+    return ptr;
 }
 
-void addArcLinesMirrored(std::vector<DefaultVertex>& verts, const Arc& arc, int numSteps = 32, glm::vec3 color = defCol)
-{
-    addLineStripMirrored(verts, getArcPoints(arc, numSteps), color);
-}
-
-void addSlingshotCircle(std::vector<DefaultVertex>& verts, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
+DefaultVertex* addSlingshotCircle(DefaultVertex* ptr, glm::vec2 P, glm::vec2 d1, glm::vec2 d2, float r)
 {
     glm::vec2 O = findCircleBetweenLines(P, d1, d2, r);
-    addCircleLines(verts, O, r);
+    return addCircleLines(ptr, O, r);
 }
 
 glm::vec2 makeVec(float angle, float len)
@@ -419,7 +422,7 @@ glm::vec2 findIntersection(const Ray& r, const Arc& a)
     return r.p + r.d * t;
 }
 
-void addCapsuleLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
+DefaultVertex* addCapsuleLines(DefaultVertex* ptr, glm::vec2 c)
 {
     float hw=0.45f;
     float hh=1.0f;
@@ -427,23 +430,25 @@ void addCapsuleLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
     glm::vec2 tr{c.x+hw,c.y+hh};
     glm::vec2 bl{c.x-hw,c.y-hh};
     glm::vec2 br{c.x+hw,c.y-hh};
-    addLineSegment(verts, tl, bl);
-    addLineSegment(verts, tr, br);
+    ptr = addLineSegment(ptr, tl, bl);
+    ptr = addLineSegment(ptr, tr, br);
     int s = 8;
-    addArcLines(verts, makeArc(tr, tl, hw), s);
-    addArcLines(verts, makeArc(bl, br, hw), s);
+    ptr = addArcLines(ptr, makeArc(tr, tl, hw), s);
+    ptr = addArcLines(ptr, makeArc(bl, br, hw), s);
+    return ptr;
 }
 
-void addPopBumperLines(std::vector<DefaultVertex>& verts, glm::vec2 c)
+DefaultVertex* addPopBumperLines(DefaultVertex* ptr, glm::vec2 c)
 {
     float rb{2.75f};
     float gap{0.45f};
     float rs{rb-gap};
-    addCircleLines(verts, c, rb);
-    addCircleLines(verts, c, rs);
+    ptr = addCircleLines(ptr, c, rb);
+    ptr = addCircleLines(ptr, c, rs);
+    return ptr;
 }
 
-void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, float t)
+DefaultVertex* addButton(DefaultVertex* ptr, glm::vec2 p0, glm::vec2 p1, float t)
 {
     glm::vec2 D{p1-p0};
     glm::vec2 c{ p0 + D*t };
@@ -455,23 +460,16 @@ void addButton(std::vector<DefaultVertex>& verts, glm::vec2 p0, glm::vec2 p1, fl
     glm::vec2 q3 = c + d*hw;
     glm::vec2 q1 = q0 + dp*h;
     glm::vec2 q2 = q3 + dp*h;
-    addLineStrip(verts, {q0,q1,q2,q3});
+    glm::vec2 pts[4] = {q0,q1,q2,q3};
+    ptr = addLineStrip(ptr, pts, 4);
+    return ptr;
 }
 
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-struct Table
+DefaultVertex* constructTable(DefaultVertex* ptr, float* plungerXout, float* plungerTopOut)
 {
-    std::vector<DefaultVertex> lines;
-    float plungerX;
-    float plungerTopY;
-};
-
-Table constructTable()
-{
-    std::vector<DefaultVertex> lines{};
-
     const glm::vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
     Line l0{ p0, Flipper::minAngle };
@@ -483,7 +481,8 @@ Table constructTable()
     const glm::vec2 p2{ p1 + glm::vec2{ 0.0f, 13.0f } };
 
     // Angled wall right near the flipper
-    addLineStripMirrored(lines, {p0,p1,p2});
+    glm::vec2 strip1[] = { p0,p1,p2 };
+    ptr = addLineStripMirrored(ptr, strip1, ARRAY_LEN(strip1));
 
     Line l2{ l0.parallel(-5.0f) };
     // addLine(lines, l2);
@@ -507,17 +506,18 @@ Table constructTable()
     const glm::vec2 p6{ pp3.x, pp3.y + 20.0f };
 
     // Outer wall near the flipper
-    addLineStripMirrored(lines, {p3,p4,pp1,pp2,pp3});
-    addLineSegment(lines, pp3, p6);
+    glm::vec2 strip2[] = { p3,p4,pp1,pp2,pp3 };
+    ptr = addLineStripMirrored(ptr, strip2, ARRAY_LEN(strip2));
+    ptr = addLineSegment(ptr, pp3, p6);
 
     // vertical wall near the right flipper
     glm::vec2 pp3r = {-pp3.x, pp3.y};
     glm::vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
-    addLineSegment(lines, pp3r, p8);
+    ptr = addLineSegment(ptr, pp3r, p8);
 
     glm::vec2 p80 = findIntersection(l2, l3);
     // ditch caps
-    addLineSegmentMirrored(lines, pp1, p80);
+    ptr = addLineSegmentMirrored(ptr, pp1, p80);
 
     // Construct slingshot
     {
@@ -535,19 +535,19 @@ Table constructTable()
 
         float LRr = 0.8f;
         ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
-        addArcLinesMirrored(lines, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
+        ptr = addArcLinesMirrored(ptr, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
 
         float RBr = 0.82f;
         ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
-        addArcLinesMirrored(lines, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
+        ptr = addArcLinesMirrored(ptr, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
 
         float LBr = 2.0f;
         ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
-        addArcLinesMirrored(lines, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
+        ptr = addArcLinesMirrored(ptr, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
 
-        addLineSegmentMirrored(lines, apLR.pStart, apRB.pEnd);
-        addLineSegmentMirrored(lines, apRB.pStart, apLB.pEnd);
-        addLineSegmentMirrored(lines, apLB.pStart, apLR.pEnd);
+        ptr = addLineSegmentMirrored(ptr, apLR.pStart, apRB.pEnd);
+        ptr = addLineSegmentMirrored(ptr, apRB.pStart, apLB.pEnd);
+        ptr = addLineSegmentMirrored(ptr, apLB.pStart, apLR.pEnd);
     }
 
 #if 0
@@ -568,10 +568,10 @@ Table constructTable()
     glm::vec2 p7{p2 + glm::vec2{2.0f, 7.0f}};
 
     // left bottom arc
-    addArcLines(lines, makeArc(p7, p6, 10.0f), 8);
+    ptr = addArcLines(ptr, makeArc(p7, p6, 10.0f), 8);
 
     glm::vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
-    addArcLines(lines, makeArc(p8, p9, 11.0f), 8);
+    ptr = addArcLines(ptr, makeArc(p8, p9, 11.0f), 8);
 
     Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
     // addLine(lines, l3r);
@@ -587,24 +587,24 @@ Table constructTable()
     glm::vec2 p22 = p20 + glm::vec2{0.0f, 1.0f} * k20;
     glm::vec2 p23 = p21 + glm::vec2{0.0f, 1.0f} * k20;
     // Plunger shaft
-    addLineSegment(lines, p20, p22);
-    addLineSegment(lines, p21, p23);
+    ptr = addLineSegment(ptr, p20, p22);
+    ptr = addLineSegment(ptr, p21, p23);
 
     // Top of the plunger
     glm::vec2 p30 = findIntersection(ll1, l20);
     glm::vec2 p31 = findIntersection(ll1, l21);
-    addLineSegment(lines, p30, p31);
+    ptr = addLineSegment(ptr, p30, p31);
     float plungerX = ((p30 + p31) / 2.0f).x;
-    float plungerTopY = p30.y;
+    float plungerTop = p30.y;
 
     float arc30r = 20.87f;
     glm::vec2 arc30c = p23 + glm::vec2{-arc30r, 0.0f};
     Arc arc30{ arc30c, arc30r, 0.0f, glm::radians(90.0f) };
-    addArcLines(lines, arc30);
+    ptr = addArcLines(ptr, arc30);
 
     float arc31r = 20.87f - plungerShuteWidth;
     Arc arc31{ arc30c, arc31r, 0.0f, glm::radians(84.0f) };
-    addArcLines(lines, arc31);
+    ptr = addArcLines(ptr, arc31);
 
     // Right upper wall
     glm::vec2 p10 = p9 + makeVec(glm::radians(110.0f), 4.5f);
@@ -612,36 +612,37 @@ Table constructTable()
     glm::vec2 p12 = p11 + makeVec(glm::radians(97.0f), 12.2f);
     glm::vec2 p13 = p12 + makeVec(glm::radians(150.0f), 10.85f);
     glm::vec2 p14 = getArcEnd(arc31);
-    addLineStrip(lines, {p9,p10,p11,p12,p13,p14});
+    glm::vec2 strip3[] = { p9,p10,p11,p12,p13,p14 };
+    ptr = addLineStrip(ptr, strip3, ARRAY_LEN(strip3));
 
-    addButton(lines, p9, p10, 0.5f);
-    addButton(lines, p10, p11, 0.5f);
-    addButton(lines, p11, p12, 0.3f);
-    addButton(lines, p11, p12, 0.7f);
-    addButton(lines, p12, p13, 0.5f);
+    ptr = addButton(ptr, p9, p10, 0.5f);
+    ptr = addButton(ptr, p10, p11, 0.5f);
+    ptr = addButton(ptr, p11, p12, 0.3f);
+    ptr = addButton(ptr, p11, p12, 0.7f);
+    ptr = addButton(ptr, p12, p13, 0.5f);
 
     Ray r30{ p14, glm::normalize(p14-p13) };
     glm::vec2 p15 = findIntersection(r30, arc30);
     // right one-way wall
-    addLineSegment(lines, p14, p15);
+    ptr = addLineSegment(ptr, p14, p15);
 
     glm::vec2 p40 = getArcEnd(arc30);
     glm::vec2 p41 = p40 + glm::vec2{-7.68f, 0.0f};
     // bridge between left and right arcs at the top of the table
-    addLineSegment(lines, p40, p41);
+    ptr = addLineSegment(ptr, p40, p41);
     // addCircleLines(lines, {p41, 0.5f});
 
     // left top big arc
     Arc a50 = makeArc(p41, p7, 20.8f);
-    addArcLines(lines, a50);
+    ptr = addArcLines(ptr, a50);
 
     // left small arc
     Arc a51 = {a50.p, a50.r - plungerShuteWidth, glm::radians(105.0f), glm::radians(130.0f)};
-    addArcLines(lines, a51);
+    ptr = addArcLines(ptr, a51);
 
     // left medium arc
     Arc a52 = {a50.p, a50.r - plungerShuteWidth, glm::radians(150.0f), glm::radians(205.0f)};
-    addArcLines(lines, a52);
+    ptr = addArcLines(ptr, a52);
 
     glm::vec2 a51s = getArcStart(a51);
     Ray r51s{ a51.p, glm::normalize(a51s - a51.p) };
@@ -653,15 +654,16 @@ Table constructTable()
 
     glm::vec2 p50 = findIntersection(r51s, a50);
     // left one-way wall
-    addLineSegment(lines, a51s, p50);
+    ptr = addLineSegment(ptr, a51s, p50);
 
     float w51 = 2.3f;
     glm::vec2 p53 = a51s - r51s.d*w51;
     glm::vec2 p54 = a51e - r51e.d*w51;
 
     // left-top walled island
-    addLineStrip(lines, {a51s,p53,p54,a51e});
-    addButton(lines, p53, p54, 0.5f);
+    glm::vec2 strip4[] = { a51s,p53,p54,a51e };
+    ptr = addLineStrip(ptr, strip4, ARRAY_LEN(strip4));
+    ptr = addButton(ptr, p53, p54, 0.5f);
 
     glm::vec2 a52s = getArcStart(a52);
     glm::vec2 a52e = getArcEnd(a52);
@@ -669,18 +671,19 @@ Table constructTable()
     glm::vec2 p61 = p60 + makeVec(glm::radians(44.0f), 4.5f);
     glm::vec2 p62 = p61 + makeVec(glm::radians(167.6f), 4.3f);
     // left-middle walled island
-    addLineStrip(lines, {a52e,p60,p61,p62,a52s});
-    addButton(lines, p61, p60, 0.5f);
-    addButton(lines, p62, p61, 0.5f);
-    addButton(lines, a52s, p62, 0.3f);
-    addButton(lines, a52s, p62, 0.7f);
+    glm::vec2 strip5[] = { a52e,p60,p61,p62,a52s };
+    ptr = addLineStrip(ptr, strip5, ARRAY_LEN(strip5));
+    ptr = addButton(ptr, p61, p60, 0.5f);
+    ptr = addButton(ptr, p62, p61, 0.5f);
+    ptr = addButton(ptr, a52s, p62, 0.3f);
+    ptr = addButton(ptr, a52s, p62, 0.7f);
 
     float capsuleGap = 4.3f;
     float leftCapsuleX = -0.7f;
     float rightCapsuleX = leftCapsuleX + capsuleGap;
     float capsuleY = p53.y;
-    addCapsuleLines(lines, {leftCapsuleX, capsuleY});
-    addCapsuleLines(lines, {rightCapsuleX, capsuleY});
+    ptr = addCapsuleLines(ptr, {leftCapsuleX, capsuleY});
+    ptr = addCapsuleLines(ptr, {rightCapsuleX, capsuleY});
 
     // Central vertical symmetry line
     //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
@@ -688,16 +691,14 @@ Table constructTable()
     glm::vec2 pb1{-4.0f, 53.0f};
     glm::vec2 pb2{pb1.x+10.7f, pb1.y+0.5f};
     glm::vec2 pb3{pb1.x+5.5f, pb1.y-7.5f};
-    addPopBumperLines(lines, pb1);
-    addPopBumperLines(lines, pb2);
-    addPopBumperLines(lines, pb3);
+    ptr = addPopBumperLines(ptr, pb1);
+    ptr = addPopBumperLines(ptr, pb2);
+    ptr = addPopBumperLines(ptr, pb3);
 
-    Table table;
-    table.lines = lines;
-    table.plungerX = plungerX;
-    table.plungerTopY = plungerTopY;
+    *plungerXout = plungerX;
+    *plungerTopOut = plungerTop;
 
-    return table;
+    return ptr;
 }
 
 static const char* const vertexCode = R"(
@@ -777,7 +778,7 @@ static GLuint createShaderProgram(const char* vCode, const char* fCode)
     return program;
 }
 
-static GLuint createVao(const std::vector<DefaultVertex>& verts)
+static GLuint createVao(DefaultVertex* verts, int numVerts)
 {
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -786,8 +787,7 @@ static GLuint createVao(const std::vector<DefaultVertex>& verts)
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    const GLsizeiptr size{ static_cast<GLsizeiptr>(verts.size() * sizeof(verts[0])) };
-    glBufferData(GL_ARRAY_BUFFER, size, verts.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, pos));
@@ -802,13 +802,11 @@ constexpr int numFlipperCircleSegments1{ 16 };
 constexpr int numFlipperCircleSegments2{ 8 };
 constexpr int numFlipperVerts{ (numFlipperCircleSegments1 + 1) + (numFlipperCircleSegments2 + 1) };
 
-static std::vector<DefaultVertex> makeFlipperVerts()
+static void makeFlipperVerts(DefaultVertex* verts)
 {
     constexpr float cosA{ (Flipper::r0 - Flipper::r1) / Flipper::d };
     const float a{ std::acos(cosA) };
     constexpr glm::vec3 color{ 1.0f, 1.0f, 1.0f };
-
-    std::vector<DefaultVertex> verts(numFlipperVerts);
 
     std::size_t nextVert{ 0 };
 
@@ -831,16 +829,12 @@ static std::vector<DefaultVertex> makeFlipperVerts()
     }
 
     assert(nextVert == numFlipperVerts);
-
-    return verts;
 }
 
 constexpr int numCircleVerts{ 64 };
 
-static std::vector<DefaultVertex> makeCircleVerts()
+static void makeCircleVerts(DefaultVertex* verts)
 {
-    std::vector<DefaultVertex> verts(numCircleVerts);
-
     for (std::size_t i{ 0 }; i < numCircleVerts; ++i)
     {
         const float t{ static_cast<float>(i) / numCircleVerts };
@@ -850,16 +844,13 @@ static std::vector<DefaultVertex> makeCircleVerts()
             { 1.0f, 1.0f, 1.0f },
         };
     }
-
-    return verts;
 }
 
 constexpr int plungerNumSections{ 10 };
-constexpr int plungerNumVerts{ plungerNumSections + 2 };
+constexpr int numPlungerVerts{ plungerNumSections + 2 };
 
-static std::vector<DefaultVertex> makePlungerVerts()
+static void makePlungerVerts(DefaultVertex* verts)
 {
-    std::vector<DefaultVertex> verts(plungerNumVerts);
     constexpr float halfWidth{ 1.0f };
     int n{ 0 };
     verts[n++] = { glm::vec2(halfWidth, 1.0f), defCol };
@@ -870,8 +861,7 @@ static std::vector<DefaultVertex> makePlungerVerts()
         const float y{ 1.0f - (1.0f / plungerNumSections) * i };
         verts[n++] = { glm::vec2(x, y), defCol };
     }
-    assert(n == plungerNumVerts);
-    return verts;
+    assert(n == numPlungerVerts);
 }
 
 static RenderData g_renderData;
@@ -912,7 +902,7 @@ static void render(RenderData* rd, StuffToRender* s)
     model = glm::scale(model, glm::vec2(1.0f, s->plungerScaleY));
     glBindVertexArray(rd->plungerVao);
     glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &model[0][0]);
-    glDrawArrays(GL_LINE_STRIP, 0, plungerNumVerts);
+    glDrawArrays(GL_LINE_STRIP, 0, numPlungerVerts);
 }
 
 static void APIENTRY glDebugOutput(
@@ -1093,7 +1083,7 @@ void simulate(float dt, SimState* s)
     }
 }
 
-void initRenderData(RenderData *rd, const std::vector<DefaultVertex>& lines)
+void initRenderData(RenderData *rd, DefaultVertex* lineVerts, int numLineVerts)
 {
     rd->program = createShaderProgram(vertexCode, fragmentCode);
 
@@ -1105,12 +1095,20 @@ void initRenderData(RenderData *rd, const std::vector<DefaultVertex>& lines)
     assert(rd->viewLoc >= 0);
     assert(rd->projectionLoc >= 0);
 
-    rd->lineVao = createVao(lines);
-    rd->numLineVerts = static_cast<int>(lines.size());
+    rd->lineVao = createVao(lineVerts, numLineVerts);
+    rd->numLineVerts = numLineVerts;
 
-    rd->circleVao = createVao(makeCircleVerts());
-    rd->flipperVao = createVao(makeFlipperVerts());
-    rd->plungerVao = createVao(makePlungerVerts());
+    DefaultVertex circleVerts[numCircleVerts];
+    makeCircleVerts(circleVerts);
+    rd->circleVao = createVao(circleVerts, numCircleVerts);
+
+    DefaultVertex flipperVerts[numFlipperVerts];
+    makeFlipperVerts(flipperVerts);
+    rd->flipperVao = createVao(flipperVerts, numFlipperVerts);
+
+    DefaultVertex plungerVerts[numPlungerVerts];
+    makePlungerVerts(plungerVerts);
+    rd->plungerVao = createVao(plungerVerts, numPlungerVerts);
 }
 
 void handleInput(SimState* s, uint8_t input)
@@ -1179,25 +1177,37 @@ int main()
     RenderData* renderData = &g_renderData;
     StuffToRender* stuffToRender = &g_stuffToRender;
 
-    Table table = constructTable();
+    constexpr size_t totalMemory = 1024 * 1024 * 16;
+    void* memory = malloc(totalMemory);
+    if (!memory)
+    {
+        fprintf(stderr, "Failed to allocate memory\n");
+        return 1;
+    }
+    void* memoryEnd = (uint8_t*) memory + totalMemory;
 
-    stuffToRender->plungerX = table.plungerX;
+    DefaultVertex* lineVerts = (DefaultVertex*) memory;
+
+    float plungerTop;
+    DefaultVertex* lineVertsEnd = constructTable(lineVerts, &stuffToRender->plungerX, &plungerTop);
+    assert(lineVertsEnd <= memoryEnd);
+    int numLineVerts = (int)(lineVertsEnd - lineVerts);
 
     SimState simState{};
     simState.ball.p = {6.0f, 10.0f};
     simState.flippers[0] = makeFlipper(glm::vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(glm::vec2{  flipperX, flipperY }, false);
 
-    assert(table.lines.size() % 2 == 0);
-    simState.numLineSegments = (int)table.lines.size() / 2;
+    assert(numLineVerts % 2 == 0);
+    simState.numLineSegments = numLineVerts / 2;
     simState.lineSegments = (LineSegment*)malloc(simState.numLineSegments * sizeof(simState.lineSegments[0]));
     for (int i = 0; i < simState.numLineSegments; ++i)
     {
-        simState.lineSegments[i].p0 = table.lines[i*2].pos;
-        simState.lineSegments[i].p1 = table.lines[i*2 + 1].pos;
+        simState.lineSegments[i].p0 = lineVerts[i*2].pos;
+        simState.lineSegments[i].p1 = lineVerts[i*2 + 1].pos;
     }
 
-    initRenderData(renderData, table.lines);
+    initRenderData(renderData, lineVerts, numLineVerts);
 
     const glm::mat3 identity{ 1.0f };
     const glm::mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
@@ -1252,7 +1262,7 @@ int main()
             stuffToRender->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        stuffToRender->plungerScaleY = table.plungerTopY;
+        stuffToRender->plungerScaleY = plungerTop;
 
         render(renderData, stuffToRender);
 
