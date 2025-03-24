@@ -7,13 +7,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <cassert>
-#include <cstdint>
-#include <cstdlib>
-#include <iostream>
-
-#include <stdlib.h>
-#include <stdio.h>
+#include <stdlib.h> // exit()
+#include <stdio.h> // fprintf()
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -745,8 +740,8 @@ static GLuint createShaderProgram(const char* vCode, const char* fCode)
     if (!success)
     {
         glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Vertex shader error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
+        fprintf(stderr, "Vertex shader error:\n%s\n", infoLog);
+        exit(1);
     }
 
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -756,8 +751,8 @@ static GLuint createShaderProgram(const char* vCode, const char* fCode)
     if (!success)
     {
         glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Fragment shader error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
+        fprintf(stderr, "Fragment shader error:\n%s\n", infoLog);
+        exit(1);
     }
 
     GLuint program = glCreateProgram();
@@ -768,8 +763,8 @@ static GLuint createShaderProgram(const char* vCode, const char* fCode)
     if (!success)
     {
         glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
-        std::cerr << "Program link error:\n" << infoLog << '\n';
-        std::exit(EXIT_FAILURE);
+        fprintf(stderr, "Program link error:\n%s\n", infoLog);
+        exit(1);
     }
 
     glDeleteShader(vs);
@@ -918,49 +913,46 @@ static void APIENTRY glDebugOutput(
     if (id == 131185) // Buffer object will use VIDEO memory as the source for buffer object operations
         return;
 
-    std::cerr << "OpenGL debug message (" << id << "): " << message << '\n';
+    fprintf(stderr, "\nOpenGL debug message (%u): %s\n", id, message);
 
     switch (source)
     {
-    case GL_DEBUG_SOURCE_API:             std::cerr << "Source: API"; break;
-    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cerr << "Source: Window System"; break;
-    case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cerr << "Source: Shader Compiler"; break;
-    case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cerr << "Source: Third Party"; break;
-    case GL_DEBUG_SOURCE_APPLICATION:     std::cerr << "Source: Application"; break;
-    case GL_DEBUG_SOURCE_OTHER:           std::cerr << "Source: Other"; break;
-    default:                              std::cerr << "Source: ???"; break;
+    case GL_DEBUG_SOURCE_API:             fprintf(stderr, "Source: API\n"); break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   fprintf(stderr, "Source: Window System\n"); break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: fprintf(stderr, "Source: Shader Compiler\n"); break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:     fprintf(stderr, "Source: Third Party\n"); break;
+    case GL_DEBUG_SOURCE_APPLICATION:     fprintf(stderr, "Source: Application\n"); break;
+    case GL_DEBUG_SOURCE_OTHER:           fprintf(stderr, "Source: Other\n"); break;
+    default:                              fprintf(stderr, "Source: ???\n"); break;
     }
-    std::cerr << '\n';
 
     switch (type)
     {
-    case GL_DEBUG_TYPE_ERROR:               std::cerr << "Type: Error"; break;
-    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cerr << "Type: Deprecated Behaviour"; break;
-    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  std::cerr << "Type: Undefined Behaviour"; break;
-    case GL_DEBUG_TYPE_PORTABILITY:         std::cerr << "Type: Portability"; break;
-    case GL_DEBUG_TYPE_PERFORMANCE:         std::cerr << "Type: Performance"; break;
-    case GL_DEBUG_TYPE_MARKER:              std::cerr << "Type: Marker"; break;
-    case GL_DEBUG_TYPE_PUSH_GROUP:          std::cerr << "Type: Push Group"; break;
-    case GL_DEBUG_TYPE_POP_GROUP:           std::cerr << "Type: Pop Group"; break;
-    case GL_DEBUG_TYPE_OTHER:               std::cerr << "Type: Other"; break;
-    default:                                std::cerr << "Type: ???"; break;
+    case GL_DEBUG_TYPE_ERROR:               fprintf(stderr, "Type: Error\n"); break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: fprintf(stderr, "Type: Deprecated Behaviour\n"); break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  fprintf(stderr, "Type: Undefined Behaviour\n"); break;
+    case GL_DEBUG_TYPE_PORTABILITY:         fprintf(stderr, "Type: Portability\n"); break;
+    case GL_DEBUG_TYPE_PERFORMANCE:         fprintf(stderr, "Type: Performance\n"); break;
+    case GL_DEBUG_TYPE_MARKER:              fprintf(stderr, "Type: Marker\n"); break;
+    case GL_DEBUG_TYPE_PUSH_GROUP:          fprintf(stderr, "Type: Push Group\n"); break;
+    case GL_DEBUG_TYPE_POP_GROUP:           fprintf(stderr, "Type: Pop Group\n"); break;
+    case GL_DEBUG_TYPE_OTHER:               fprintf(stderr, "Type: Other\n"); break;
+    default:                                fprintf(stderr, "Type: ???\n"); break;
     }
-    std::cerr << '\n';
 
     switch (severity)
     {
-    case GL_DEBUG_SEVERITY_HIGH:         std::cerr << "Severity: high"; break;
-    case GL_DEBUG_SEVERITY_MEDIUM:       std::cerr << "Severity: medium"; break;
-    case GL_DEBUG_SEVERITY_LOW:          std::cerr << "Severity: low"; break;
-    case GL_DEBUG_SEVERITY_NOTIFICATION: std::cerr << "Severity: notification"; break;
-    default:                             std::cerr << "Severity: ???"; break;
+    case GL_DEBUG_SEVERITY_HIGH:         fprintf(stderr, "Severity: high\n"); break;
+    case GL_DEBUG_SEVERITY_MEDIUM:       fprintf(stderr, "Severity: medium\n"); break;
+    case GL_DEBUG_SEVERITY_LOW:          fprintf(stderr, "Severity: low\n"); break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION: fprintf(stderr, "Severity: notification\n"); break;
+    default:                             fprintf(stderr, "Severity: ???\n"); break;
     }
-    std::cerr << "\n\n";
 }
 
 static void errorCallback(int /*error*/, const char* description)
 {
-    std::cerr << "GLFW error: " << description << '\n';
+    fprintf(stderr, "GLFW error: %s\n", description);
 }
 
 static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
@@ -1139,8 +1131,8 @@ int main()
 
     if (!glfwInit())
     {
-        std::cerr << "Failed to initialize GLFW\n";
-        return EXIT_FAILURE;
+        fprintf(stderr, "Failed to initialize GLFW\n");
+        return 1;
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -1152,15 +1144,15 @@ int main()
     GLFWwindow* window{ glfwCreateWindow(800, 800, "my_pinball", nullptr, nullptr) };
     if (!window)
     {
-        std::cerr << "Failed to create GLFW window\n";
-        return EXIT_FAILURE;
+        fprintf(stderr, "Failed to create GLFW window\n");
+        return 1;
     }
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
     {
-        std::cerr << "Failed to initialize GLAD\n";
-        return EXIT_FAILURE;
+        fprintf(stderr, "Failed to initialize GLAD\n");
+        return 1;
     }
 
     if (GLAD_GL_KHR_debug)
@@ -1270,5 +1262,5 @@ int main()
         glfwPollEvents();
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
