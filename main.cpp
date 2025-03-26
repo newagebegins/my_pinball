@@ -329,7 +329,7 @@ struct Ray
 
 constexpr Vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr Vec3 auxCol{ 0.5f, 0.5f, 0.5f };
-[[maybe_unused]] constexpr Vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
+constexpr Vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
 DefaultVertex* addLineSegment(DefaultVertex* ptr, Vec2 p0, Vec2 p1)
 {
