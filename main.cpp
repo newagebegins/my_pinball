@@ -284,12 +284,14 @@ struct LineSegment
     Vec2 p1;
 };
 
+constexpr int lineSegmentsCap = 512;
+
 struct SimState
 {
     Ball ball;
     Flipper flippers[numFlippers];
 
-    LineSegment* lineSegments;
+    LineSegment lineSegments[lineSegmentsCap];
     int numLineSegments;
 };
 
@@ -1012,8 +1014,12 @@ static void makePlungerVerts(DefaultVertex* verts)
     assert(n == numPlungerVerts);
 }
 
+constexpr int tableVertsCap = 1024;
+static DefaultVertex g_tableVerts[tableVertsCap];
+
 static RenderData g_renderData;
 static StuffToRender g_stuffToRender;
+static SimState g_simState;
 
 static void render(RenderData* rd, StuffToRender* s)
 {
@@ -1346,37 +1352,28 @@ int main()
     RenderData* renderData = &g_renderData;
     StuffToRender* stuffToRender = &g_stuffToRender;
 
-    constexpr int totalMemory = 1024 * 1024 * 16;
-    void* memory = malloc(totalMemory);
-    if (!memory)
-    {
-        fprintf(stderr, "Failed to allocate memory\n");
-        return 1;
-    }
-    void* memoryEnd = (uint8_t*) memory + totalMemory;
-
-    DefaultVertex* lineVerts = (DefaultVertex*) memory;
+    DefaultVertex* tableVerts = g_tableVerts;
 
     float plungerTop;
-    DefaultVertex* lineVertsEnd = constructTable(lineVerts, &stuffToRender->plungerX, &plungerTop);
-    assert(lineVertsEnd <= memoryEnd);
-    int numLineVerts = (int)(lineVertsEnd - lineVerts);
+    DefaultVertex* tableVertsEnd = constructTable(tableVerts, &stuffToRender->plungerX, &plungerTop);
+    int numTableVerts = (int)(tableVertsEnd - tableVerts);
+    assert(numTableVerts <= tableVertsCap);
 
-    SimState simState{};
+    SimState& simState{ g_simState };
     simState.ball.p = {6.0f, 10.0f};
     simState.flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
 
-    assert(numLineVerts % 2 == 0);
-    simState.numLineSegments = numLineVerts / 2;
-    simState.lineSegments = (LineSegment*)malloc(simState.numLineSegments * sizeof(simState.lineSegments[0]));
+    assert(numTableVerts % 2 == 0);
+    simState.numLineSegments = numTableVerts / 2;
+    assert(simState.numLineSegments < lineSegmentsCap);
     for (int i = 0; i < simState.numLineSegments; ++i)
     {
-        simState.lineSegments[i].p0 = lineVerts[i*2].pos;
-        simState.lineSegments[i].p1 = lineVerts[i*2 + 1].pos;
+        simState.lineSegments[i].p0 = tableVerts[i*2].pos;
+        simState.lineSegments[i].p1 = tableVerts[i*2 + 1].pos;
     }
 
-    initRenderData(renderData, lineVerts, numLineVerts);
+    initRenderData(renderData, tableVerts, numTableVerts);
 
     Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
