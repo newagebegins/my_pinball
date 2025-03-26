@@ -12,7 +12,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glfw)
 
 add_subdirectory(deps/glad)
-add_subdirectory(deps/glm)
 
 add_executable(my_pinball main.cpp)
 # C++17 for [[maybe_unused]]
@@ -21,4 +20,4 @@ target_compile_options(my_pinball PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror -pedantic-errors -Wall -Wextra -Wconversion -Wsign-conversion>
 )
-target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad glm)
+target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad)
