@@ -1345,7 +1345,7 @@ int main()
         }
         else
         {
-            constexpr float plungerImpulse = 100.0f;
+            constexpr float plungerImpulse = 200.0f;
             bool ballIsOnTopOfPlunger = fabsf((simState.ball.p.y - 1.0f) - table.plungerTopY) < 0.5f;
             if (ballIsOnTopOfPlunger)
             {
@@ -1365,8 +1365,8 @@ int main()
 
             // Update ball
             {
-                Vec2 a = { 0.0f, -10.0f };
-                simState.ball.v += a * simDt;
+                constexpr Vec2 gravity = { 0.0f, -80.0f };
+                simState.ball.v += gravity * simDt;
                 simState.ball.p += simState.ball.v * simDt;
             }
 
