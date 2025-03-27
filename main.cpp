@@ -1372,7 +1372,7 @@ int main()
     stuffToRender->plungerCenterX = table.plungerCenterX;
 
     SimState& simState{ g_simState };
-    simState.ball.p = {6.0f, 10.0f};
+    simState.ball.p = {table.plungerCenterX, table.plungerTopY + 3.0f};
     simState.flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
     simState.flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
 
