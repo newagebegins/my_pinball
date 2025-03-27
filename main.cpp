@@ -1281,6 +1281,9 @@ int main()
         simState.lineSegments[i].p1 = tableVerts[i*2 + 1].pos;
     }
 
+    float plungerT = 0.0f;
+    constexpr float plungerDownSpeed = 1.0f;
+
     initRenderData(renderData, tableVerts, numTableVerts);
 
     Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
@@ -1330,6 +1333,19 @@ int main()
         else
         {
             simState.flippers[1].angularVelocity = maxAngularVelocity;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            plungerT += plungerDownSpeed * frameDt;
+            if (plungerT > 1.0f)
+            {
+                plungerT = 1.0f;
+            }
+        }
+        else
+        {
+            plungerT = 0.0f;
         }
 
         //
@@ -1425,7 +1441,7 @@ int main()
             stuffToRender->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        stuffToRender->plungerScaleY = table.plungerTopY;
+        stuffToRender->plungerScaleY = table.plungerTopY * (1.0f - plungerT);
 
         render(renderData, stuffToRender);
 
