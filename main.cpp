@@ -210,9 +210,6 @@ static Vec2 perp(Vec2 v)
     return {-v.y, v.x};
 }
 
-#define BUTTON_L (1 << 0)
-#define BUTTON_R (1 << 1)
-
 struct Arc
 {
     Vec2 p;
@@ -1297,28 +1294,6 @@ void initRenderData(RenderData *rd, DefaultVertex* lineVerts, int numLineVerts)
     rd->debugVao = createVao(nullptr, debugVertsCap, &rd->debugVbo);
 }
 
-void handleInput(SimState* s, uint8_t input)
-{
-
-    if (input & BUTTON_L)
-    {
-        s->flippers[0].angularVelocity = maxAngularVelocity;
-    }
-    else
-    {
-        s->flippers[0].angularVelocity = -maxAngularVelocity;
-    }
-
-    if (input & BUTTON_R)
-    {
-        s->flippers[1].angularVelocity = -maxAngularVelocity;
-    }
-    else
-    {
-        s->flippers[1].angularVelocity = maxAngularVelocity;
-    }
-}
-
 int main()
 {
     glfwSetErrorCallback(errorCallback);
@@ -1410,23 +1385,35 @@ int main()
 
         stuffToRender->numDebugVerts = 0;
 
+        //
+        // Handle input
+        //
+
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
             glfwSetWindowShouldClose(window, true);
         }
 
-        uint8_t input{};
-
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
         {
-            input |= BUTTON_L;
+            simState.flippers[0].angularVelocity = maxAngularVelocity;
         }
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+        else
         {
-            input |= BUTTON_R;
+            simState.flippers[0].angularVelocity = -maxAngularVelocity;
         }
 
-        handleInput(&simState, input);
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+        {
+            simState.flippers[1].angularVelocity = -maxAngularVelocity;
+        }
+        else
+        {
+            simState.flippers[1].angularVelocity = maxAngularVelocity;
+        }
+
+        //
+        //
 
         while (accum >= simDt)
         {
