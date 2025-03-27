@@ -186,7 +186,7 @@ struct StuffToRender
     Circle circles[numCircles];
     Mat3 flipperTransforms[numFlippers];
 
-    float plungerX;
+    float plungerCenterX;
     float plungerScaleY;
 
     DefaultVertex debugVerts[debugVertsCap];
@@ -616,8 +616,17 @@ DefaultVertex* addButton(DefaultVertex* ptr, Vec2 p0, Vec2 p1, float t)
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
-DefaultVertex* constructTable(DefaultVertex* ptr, float* plungerXout, float* plungerTopOut)
+struct Table
 {
+    DefaultVertex* tableVertsEnd;
+    float plungerCenterX;
+    float plungerTopY;
+};
+
+Table constructTable(DefaultVertex* ptr)
+{
+    Table table;
+
     const Vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
     Line l0{ p0, Flipper::minAngle };
@@ -742,8 +751,8 @@ DefaultVertex* constructTable(DefaultVertex* ptr, float* plungerXout, float* plu
     Vec2 p30 = findIntersection(ll1, l20);
     Vec2 p31 = findIntersection(ll1, l21);
     ptr = addLineSegment(ptr, p30, p31);
-    float plungerX = ((p30 + p31) / 2.0f).x;
-    float plungerTop = p30.y;
+    table.plungerCenterX = ((p30 + p31) / 2.0f).x;
+    table.plungerTopY = p30.y;
 
     float arc30r = 20.87f;
     Vec2 arc30c = p23 + Vec2{-arc30r, 0.0f};
@@ -843,10 +852,9 @@ DefaultVertex* constructTable(DefaultVertex* ptr, float* plungerXout, float* plu
     ptr = addPopBumperLines(ptr, pb2);
     ptr = addPopBumperLines(ptr, pb3);
 
-    *plungerXout = plungerX;
-    *plungerTopOut = plungerTop;
+    table.tableVertsEnd = ptr;
 
-    return ptr;
+    return table;
 }
 
 static const char* const vertexCode = R"(
@@ -1057,7 +1065,7 @@ static void render(RenderData* rd, StuffToRender* s)
     // draw the plunger
     {
         float m[9];
-        m[0] = 1.0f;  m[3] = 0.0f;              m[6] = s->plungerX;
+        m[0] = 1.0f;  m[3] = 0.0f;              m[6] = s->plungerCenterX;
         m[1] = 0.0f;  m[4] = s->plungerScaleY;  m[7] = 0.0f;
         m[2] = 0.0f;  m[5] = 0.0f;              m[8] = 1.0f;
         glBindVertexArray(rd->plungerVao);
@@ -1357,10 +1365,11 @@ int main()
 
     DefaultVertex* tableVerts = g_tableVerts;
 
-    float plungerTop;
-    DefaultVertex* tableVertsEnd = constructTable(tableVerts, &stuffToRender->plungerX, &plungerTop);
-    int numTableVerts = (int)(tableVertsEnd - tableVerts);
+    Table table = constructTable(tableVerts);
+    int numTableVerts = (int)(table.tableVertsEnd - tableVerts);
     assert(numTableVerts <= tableVertsCap);
+
+    stuffToRender->plungerCenterX = table.plungerCenterX;
 
     SimState& simState{ g_simState };
     simState.ball.p = {6.0f, 10.0f};
@@ -1432,7 +1441,7 @@ int main()
             stuffToRender->flipperTransforms[i] = simState.flippers[i].transform;
         }
 
-        stuffToRender->plungerScaleY = plungerTop;
+        stuffToRender->plungerScaleY = table.plungerTopY;
 
         render(renderData, stuffToRender);
 
