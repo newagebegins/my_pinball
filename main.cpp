@@ -1345,6 +1345,13 @@ int main()
         }
         else
         {
+            constexpr float plungerImpulse = 100.0f;
+            bool ballIsOnTopOfPlunger = fabsf((simState.ball.p.y - 1.0f) - table.plungerTopY) < 0.5f;
+            if (ballIsOnTopOfPlunger)
+            {
+                // Launch the ball
+                simState.ball.v.y += plungerImpulse * plungerT;
+            }
             plungerT = 0.0f;
         }
 
