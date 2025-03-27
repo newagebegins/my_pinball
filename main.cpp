@@ -1369,10 +1369,10 @@ int main()
     glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
 
     float accum = 0.0f;
+    float prevTime{ (float)glfwGetTime() };
 
     while (!glfwWindowShouldClose(window))
     {
-        static float prevTime{ (float)glfwGetTime() };
         float currentTime{ (float)glfwGetTime() };
         float dt = currentTime - prevTime;
         if (dt > maxDt)
