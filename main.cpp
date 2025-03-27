@@ -1176,91 +1176,12 @@ Mat4 myOrtho(float l, float r, float b, float t, float n, float f)
     return m;
 }
 
-void updateBall(Ball* b, float dt)
-{
-    Vec2 a = {0.0f, -10.0f};
-    b->v += a * dt;
-    b->p += b->v * dt;
-}
-
 void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float e = 0.5f)
 {
     if (relativeNormalVelocity <= 0.0f)
     {
         ball->p += normal * penetration;
         ball->v += -(1.0f + e) * relativeNormalVelocity * normal;
-    }
-}
-
-void checkCollisionBallLineSegment(Ball* ball, Vec2 p0, Vec2 p1)
-{
-    Vec2 L = p1 - p0;
-    float segmentLength = getLength(L);
-    Vec2 dir = L/segmentLength;
-    float t = clamp(dot(ball->p - p0, dir), 0.0f, segmentLength);
-    Vec2 closestPoint = p0 + t * dir;
-    float dist = getDistance(ball->p, closestPoint);
-    float penetration = ballRadius - dist;
-    if (penetration >= 0.0f)
-    {
-        Vec2 normal = normalize(ball->p - closestPoint);
-        Vec2 relativeVelocity = ball->v; // line segment is stationary
-        float relativeNormalVelocity = dot(relativeVelocity, normal);
-        resolveCollision(ball, normal, penetration, relativeNormalVelocity);
-    }
-}
-
-void simulate(float dt, SimState* s)
-{
-    updateBall(&s->ball, dt);
-
-    for (int i = 0; i < numFlippers; ++ i)
-    {
-        Flipper *f = &s->flippers[i];
-        f->orientation += f->angularVelocity * dt;
-        if (f->orientation < Flipper::minAngle)
-        {
-            f->orientation = Flipper::minAngle;
-        }
-        else if (f->orientation > Flipper::maxAngle)
-        {
-            f->orientation = Flipper::maxAngle;
-        }
-        if (f->orientation == Flipper::minAngle || f->orientation == Flipper::maxAngle)
-        {
-            f->angularVelocity = 0.0f;
-        }
-        updateTransform(f);
-    }
-
-    // check collision of ball and flippers
-    for (int i{ 0 }; i < numFlippers; ++i)
-    {
-        Flipper* flipper{ &s->flippers[i] };
-        Vec2 p0{ makeVec2(flipper->transform * Vec3{0.0f, 0.0f, 1.0f}) };
-        Vec2 p1{ makeVec2(flipper->transform * Vec3{Flipper::d, 0.0f, 1.0f}) };
-        Vec2 line{ p1 - p0 };
-        Vec2 lineDir{ normalize(line) };
-        float t{ clamp(dot(s->ball.p - p0, lineDir) / getLength(line), 0.0f, 1.0f) };
-        float r{ lerp(Flipper::r0, Flipper::r1, t) };
-        Vec2 closestPoint{ p0 + line * t };
-        float dist{ getDistance(closestPoint, s->ball.p) };
-        float penetration = (r + ballRadius) - dist;
-        Vec2 normal = normalize(s->ball.p - closestPoint);
-        if (penetration >= 0.0f)
-        {
-            Vec2 pointOnFlipperWorld{ s->ball.p - normal * (ballRadius - penetration) };
-            Vec2 pointOnFlipperLocal{ pointOnFlipperWorld - flipper->position };
-            Vec2 pointOnFlipperVelocity{ flipper->angularVelocity * perp(pointOnFlipperLocal) };
-            Vec2 relativeVelocity{ s->ball.v - pointOnFlipperVelocity };
-            float relativeNormalVelocity{ dot(relativeVelocity, normal) };
-            resolveCollision(&s->ball, normal, penetration, relativeNormalVelocity);
-        }
-    }
-
-    for (int i = 0; i < s->numLineSegments; ++i)
-    {
-        checkCollisionBallLineSegment(&s->ball, s->lineSegments[i].p0, s->lineSegments[i].p1);
     }
 }
 
@@ -1374,14 +1295,13 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         float currentTime{ (float)glfwGetTime() };
-        float dt = currentTime - prevTime;
-        if (dt > maxDt)
+        float frameDt = currentTime - prevTime;
+        if (frameDt > maxDt)
         {
-            dt = maxDt;
+            frameDt = maxDt;
         }
-        //dt /= 20.0f;
         prevTime = currentTime;
-        accum += dt;
+        accum += frameDt;
 
         stuffToRender->numDebugVerts = 0;
 
@@ -1413,13 +1333,90 @@ int main()
         }
 
         //
+        // Fixed-step physics simulation
         //
 
         while (accum >= simDt)
         {
             accum -= simDt;
-            simulate(simDt, &simState);
+
+            // Update ball
+            {
+                Vec2 a = { 0.0f, -10.0f };
+                simState.ball.v += a * simDt;
+                simState.ball.p += simState.ball.v * simDt;
+            }
+
+            // Update flippers
+            for (int i = 0; i < numFlippers; ++i)
+            {
+                Flipper* f = &simState.flippers[i];
+                f->orientation += f->angularVelocity * simDt;
+                if (f->orientation < Flipper::minAngle)
+                {
+                    f->orientation = Flipper::minAngle;
+                }
+                else if (f->orientation > Flipper::maxAngle)
+                {
+                    f->orientation = Flipper::maxAngle;
+                }
+                if (f->orientation == Flipper::minAngle || f->orientation == Flipper::maxAngle)
+                {
+                    f->angularVelocity = 0.0f;
+                }
+                updateTransform(f);
+            }
+
+            // Check collision of ball and flippers
+            for (int i{ 0 }; i < numFlippers; ++i)
+            {
+                Flipper* flipper{ &simState.flippers[i] };
+                Vec2 p0{ makeVec2(flipper->transform * Vec3{0.0f, 0.0f, 1.0f}) };
+                Vec2 p1{ makeVec2(flipper->transform * Vec3{Flipper::d, 0.0f, 1.0f}) };
+                Vec2 line{ p1 - p0 };
+                Vec2 lineDir{ normalize(line) };
+                float t{ clamp(dot(simState.ball.p - p0, lineDir) / getLength(line), 0.0f, 1.0f) };
+                float r{ lerp(Flipper::r0, Flipper::r1, t) };
+                Vec2 closestPoint{ p0 + line * t };
+                float dist{ getDistance(closestPoint, simState.ball.p) };
+                float penetration = (r + ballRadius) - dist;
+                Vec2 normal = normalize(simState.ball.p - closestPoint);
+                if (penetration >= 0.0f)
+                {
+                    Vec2 pointOnFlipperWorld{ simState.ball.p - normal * (ballRadius - penetration) };
+                    Vec2 pointOnFlipperLocal{ pointOnFlipperWorld - flipper->position };
+                    Vec2 pointOnFlipperVelocity{ flipper->angularVelocity * perp(pointOnFlipperLocal) };
+                    Vec2 relativeVelocity{ simState.ball.v - pointOnFlipperVelocity };
+                    float relativeNormalVelocity{ dot(relativeVelocity, normal) };
+                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and line segments
+            for (int i = 0; i < simState.numLineSegments; ++i)
+            {
+                Vec2 p0 = simState.lineSegments[i].p0;
+                Vec2 p1 = simState.lineSegments[i].p1;
+                Vec2 L = p1 - p0;
+                float segmentLength = getLength(L);
+                Vec2 dir = L / segmentLength;
+                float t = clamp(dot(simState.ball.p - p0, dir), 0.0f, segmentLength);
+                Vec2 closestPoint = p0 + t * dir;
+                float dist = getDistance(simState.ball.p, closestPoint);
+                float penetration = ballRadius - dist;
+                if (penetration >= 0.0f)
+                {
+                    Vec2 normal = normalize(simState.ball.p - closestPoint);
+                    Vec2 relativeVelocity = simState.ball.v; // line segment is stationary
+                    float relativeNormalVelocity = dot(relativeVelocity, normal);
+                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
         }
+
+        //
+        // Render the frame
+        //
 
         stuffToRender->circles[0] = {simState.ball.p, ballRadius};
 
