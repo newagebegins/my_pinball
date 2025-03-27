@@ -240,9 +240,9 @@ struct Flipper
 
     Mat3 transform;
     Vec2 position;
-    float orientation{ 0.0f };
-    float scaleX{ 1.0f };
-    float angularVelocity{ -maxAngularVelocity };
+    float orientation;
+    float scaleX;
+    float angularVelocity;
 };
 
 void updateTransform(Flipper* f)
@@ -250,6 +250,7 @@ void updateTransform(Flipper* f)
     float c = cosf(f->orientation);
     float s = sinf(f->orientation);
 
+    // T*R*S matrix
     f->transform.m[0][0] = c * f->scaleX;
     f->transform.m[0][1] = s * f->scaleX;
     f->transform.m[0][2] = 0.0f;
@@ -267,7 +268,9 @@ Flipper makeFlipper(Vec2 position, bool isLeft)
 {
     Flipper f;
     f.position = position;
+    f.orientation = 0.0f;
     f.scaleX = isLeft ? 1.0f : -1.0f;
+    f.angularVelocity = -maxAngularVelocity;
     updateTransform(&f);
     return f;
 }
