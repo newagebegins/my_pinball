@@ -75,6 +75,16 @@ float dot(Vec2 a, Vec2 b)
     return a.x*b.x + a.y*b.y;
 }
 
+Vec2 perp(Vec2 v)
+{
+    return { -v.y, v.x };
+}
+
+float perpDot(Vec2 a, Vec2 b)
+{
+    return dot(perp(a), b);
+}
+
 float lerp(float x, float y, float t)
 {
     return (1.0f - t)*x + t*y;
@@ -205,11 +215,6 @@ namespace Constants
 constexpr float pi{ 3.14159265f };
 constexpr float twoPi{ 2.0f * pi };
 
-static Vec2 perp(Vec2 v)
-{
-    return {-v.y, v.x};
-}
-
 struct Arc
 {
     Vec2 p;
@@ -331,12 +336,13 @@ struct Ray
 
 constexpr Vec3 defCol{ 1.0f, 1.0f, 1.0f };
 constexpr Vec3 auxCol{ 0.5f, 0.5f, 0.5f };
+constexpr Vec3 oneWayWallsColor{ 0.5f, 0.5f, 0.8f };
 constexpr Vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
-DefaultVertex* addLineSegment(DefaultVertex* ptr, Vec2 p0, Vec2 p1)
+DefaultVertex* addLineSegment(DefaultVertex* ptr, Vec2 p0, Vec2 p1, Vec3 color = defCol)
 {
-    *ptr++ = { p0, defCol };
-    *ptr++ = { p1, defCol };
+    *ptr++ = { p0, color };
+    *ptr++ = { p1, color };
     return ptr;
 }
 
@@ -613,11 +619,15 @@ DefaultVertex* addButton(DefaultVertex* ptr, Vec2 p0, Vec2 p1, float t)
 constexpr float flipperX{ 10.0f };
 constexpr float flipperY{ 7.0f };
 
+constexpr int numOneWayWalls = 2;
+
 struct Table
 {
     DefaultVertex* tableVertsEnd;
     float plungerCenterX;
     float plungerTopY;
+
+    LineSegment oneWayWalls[numOneWayWalls];
 };
 
 Table constructTable(DefaultVertex* ptr)
@@ -778,7 +788,8 @@ Table constructTable(DefaultVertex* ptr)
     Ray r30{ p14, normalize(p14-p13) };
     Vec2 p15 = findIntersection(r30, arc30);
     // right one-way wall
-    ptr = addLineSegment(ptr, p14, p15);
+    //ptr = addLineSegment(ptr, p14, p15);
+    table.oneWayWalls[0] = { p14,p15 };
 
     Vec2 p40 = getArcEnd(arc30);
     Vec2 p41 = p40 + Vec2{-7.68f, 0.0f};
@@ -808,7 +819,8 @@ Table constructTable(DefaultVertex* ptr)
 
     Vec2 p50 = findIntersection(r51s, a50);
     // left one-way wall
-    ptr = addLineSegment(ptr, a51s, p50);
+    //ptr = addLineSegment(ptr, a51s, p50);
+    table.oneWayWalls[1] = { p50, a51s };
 
     float w51 = 2.3f;
     Vec2 p53 = a51s - r51s.d*w51;
@@ -1284,6 +1296,11 @@ int main()
     float plungerT = 0.0f;
     constexpr float plungerDownSpeed = 1.0f;
 
+    // HACK!
+    table.tableVertsEnd = addLineSegment(table.tableVertsEnd, table.oneWayWalls[0].p0, table.oneWayWalls[0].p1, oneWayWallsColor);
+    table.tableVertsEnd = addLineSegment(table.tableVertsEnd, table.oneWayWalls[1].p0, table.oneWayWalls[1].p1, oneWayWallsColor);
+    numTableVerts += 4;
+
     initRenderData(renderData, tableVerts, numTableVerts);
 
     Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
@@ -1428,6 +1445,28 @@ int main()
                 float dist = getDistance(simState.ball.p, closestPoint);
                 float penetration = ballRadius - dist;
                 if (penetration >= 0.0f)
+                {
+                    Vec2 normal = normalize(simState.ball.p - closestPoint);
+                    Vec2 relativeVelocity = simState.ball.v; // line segment is stationary
+                    float relativeNormalVelocity = dot(relativeVelocity, normal);
+                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and one-way walls
+            for (int i = 0; i < numOneWayWalls; ++i)
+            {
+                Vec2 p0 = table.oneWayWalls[i].p0;
+                Vec2 p1 = table.oneWayWalls[i].p1;
+                Vec2 L = p1 - p0;
+                float segmentLength = getLength(L);
+                Vec2 dir = L / segmentLength;
+                float t = clamp(dot(simState.ball.p - p0, dir), 0.0f, segmentLength);
+                Vec2 closestPoint = p0 + t * dir;
+                float dist = getDistance(simState.ball.p, closestPoint);
+                float penetration = ballRadius - dist;
+                bool ballIsOnCollidinSide = perpDot(L, simState.ball.p - p0) >= 0.0f;
+                if (penetration >= 0.0f && ballIsOnCollidinSide)
                 {
                     Vec2 normal = normalize(simState.ball.p - closestPoint);
                     Vec2 relativeVelocity = simState.ball.v; // line segment is stationary
