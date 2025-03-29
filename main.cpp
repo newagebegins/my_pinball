@@ -157,8 +157,8 @@ Vec2 makeVec2(Vec3 v)
 
 struct Circle
 {
-    Vec2 center;
-    float radius;
+    Vec2 p;
+    float r;
 };
 
 struct DefaultVertex
@@ -167,7 +167,6 @@ struct DefaultVertex
     Vec3 col;
 };
 
-constexpr int numCircles = 1;
 constexpr int numFlippers = 2;
 
 constexpr int debugVertsCap = 64;
@@ -190,6 +189,8 @@ struct RenderData
     GLuint debugVao;
     GLuint debugVbo;
 };
+
+constexpr int numCircles = 1;
 
 struct StuffToRender
 {
@@ -289,17 +290,6 @@ struct LineSegment
     Vec2 p1;
 };
 
-constexpr int lineSegmentsCap = 512;
-
-struct SimState
-{
-    Ball ball;
-    Flipper flippers[numFlippers];
-
-    LineSegment lineSegments[lineSegmentsCap];
-    int numLineSegments;
-};
-
 struct Line
 {
     Vec2 p; // point on the line
@@ -339,19 +329,10 @@ constexpr Vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 constexpr Vec3 oneWayWallsColor{ 0.5f, 0.5f, 0.8f };
 constexpr Vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
-DefaultVertex* addLineSegment(DefaultVertex* ptr, Vec2 p0, Vec2 p1, Vec3 color = defCol)
+LineSegment* addLineSegmentMirrored(LineSegment* ptr, Vec2 p0, Vec2 p1)
 {
-    *ptr++ = { p0, color };
-    *ptr++ = { p1, color };
-    return ptr;
-}
-
-DefaultVertex* addLineSegmentMirrored(DefaultVertex* ptr, Vec2 p0, Vec2 p1, Vec3 color = defCol)
-{
-    *ptr++ = { p0, color };
-    *ptr++ = { p1, color };
-    *ptr++ = { {-p0.x, p0.y}, color };
-    *ptr++ = { {-p1.x, p1.y}, color };
+    *ptr++ = {p0, p1};
+    *ptr++ = {{-p0.x, p0.y}, {-p1.x, p1.y}};
     return ptr;
 }
 
@@ -390,24 +371,22 @@ DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
     return ptr;
 }
 
-DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, float xScale = 1.0f, Vec3 color = defCol)
+LineSegment* addLineStrip(LineSegment* ptr, Vec2* pts, int numPts, float xScale = 1.0f)
 {
     assert(numPts > 1);
-    *ptr++ = { {pts[0].x*xScale, pts[0].y}, color };
-    for (int i{1}; i < numPts-1; ++i)
+    for (int i = 0; i < numPts-1; ++i)
     {
-        DefaultVertex v{{pts[i].x*xScale, pts[i].y}, color};
-        *ptr++ = v;
-        *ptr++ = v;
+        Vec2 p0 = { pts[i].x * xScale, pts[i].y };
+        Vec2 p1 = { pts[i+1].x * xScale, pts[i+1].y };
+        *ptr++ = { p0, p1 };
     }
-    *ptr++ = { {pts[numPts-1].x*xScale, pts[numPts-1].y}, color };
     return ptr;
 }
 
-DefaultVertex* addLineStripMirrored(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 color = defCol)
+LineSegment* addLineStripMirrored(LineSegment* ptr, Vec2* pts, int numPts)
 {
-    ptr = addLineStrip(ptr, pts, numPts, 1.0f, color);
-    ptr = addLineStrip(ptr, pts, numPts, -1.0f, color);
+    ptr = addLineStrip(ptr, pts, numPts, 1.0f);
+    ptr = addLineStrip(ptr, pts, numPts, -1.0f);
     return ptr;
 }
 
@@ -456,7 +435,14 @@ Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
 float getAngle(Vec2 v)
 {
     float a = atan2f(v.y, v.x);
-    if (a < 0) a += twoPi;
+    if (fabsf(a) < 0.000001f)
+    {
+        a = 0.0f;
+    }
+    else if (a < 0)
+    {
+        a += twoPi;
+    }
     return a;
 }
 
@@ -494,7 +480,7 @@ ArcPoints findArcBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
     return {Q, R};
 }
 
-DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, Vec3 color = defCol, float scaleX = 1.0f)
+DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, Vec3 color = defCol)
 {
     assert(0.0f <= arc.start && arc.start < twoPi);
     assert(0.0f <= arc.end && arc.end < twoPi);
@@ -512,7 +498,7 @@ DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32
         const float angle{ lerp(start, end, t) };
         float x = arc.p.x + cosf(angle) * arc.r;
         float y = arc.p.y + sinf(angle) * arc.r;
-        DefaultVertex v = { {x*scaleX, y}, color };
+        DefaultVertex v = { {x, y}, color };
         *ptr++ = v;
         if (i > 0 && i < numSteps - 1)
         {
@@ -523,22 +509,33 @@ DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32
     return ptr;
 }
 
-DefaultVertex* addArcLinesMirrored(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, Vec3 color = defCol)
+Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
 {
-    ptr = addArcLines(ptr, arc, numSteps, color, 1.0f);
-    ptr = addArcLines(ptr, arc, numSteps, color, -1.0f);
-    return ptr;
+    return { cosf(angle) * len, sinf(angle) * len };
+}
+
+// Reflect around Y axis
+Vec2 reflect(Vec2 v)
+{
+    return {-v.x, v.y};
+}
+
+Arc reflectArc(const Arc& arc)
+{
+    Arc result;
+    result.p = reflect(arc.p);
+    result.r = arc.r;
+    Vec2 reflectedStart = reflect(makeVec2FromAngle(arc.start));
+    Vec2 reflectedEnd = reflect(makeVec2FromAngle(arc.end));
+    result.start = getAngle(reflectedEnd);
+    result.end = getAngle(reflectedStart);
+    return result;
 }
 
 DefaultVertex* addSlingshotCircle(DefaultVertex* ptr, Vec2 P, Vec2 d1, Vec2 d2, float r)
 {
     Vec2 O = findCircleBetweenLines(P, d1, d2, r);
     return addCircleLines(ptr, O, r);
-}
-
-Vec2 makeVec(float angle, float len)
-{
-    return { cosf(angle) * len, sinf(angle) * len };
 }
 
 // Circle through 2 points with the given radius
@@ -573,25 +570,32 @@ Vec2 findIntersection(const Ray& r, const Arc& a)
     return r.p + r.d * t;
 }
 
+constexpr float capsuleHalfHeight = 1.0f;
+constexpr float capsuleRadius = 0.45f;
+
 DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 {
-    float hw=0.45f;
-    float hh=1.0f;
+    float hw=capsuleRadius;
+    float hh=capsuleHalfHeight;
     Vec2 tl{c.x-hw,c.y+hh};
     Vec2 tr{c.x+hw,c.y+hh};
     Vec2 bl{c.x-hw,c.y-hh};
     Vec2 br{c.x+hw,c.y-hh};
-    ptr = addLineSegment(ptr, tl, bl);
-    ptr = addLineSegment(ptr, tr, br);
+    *ptr++ = {tl, defCol};
+    *ptr++ = {bl, defCol};
+    *ptr++ = {tr, defCol};
+    *ptr++ = {br, defCol};
     int s = 8;
     ptr = addArcLines(ptr, makeArc(tr, tl, hw), s);
     ptr = addArcLines(ptr, makeArc(bl, br, hw), s);
     return ptr;
 }
 
+constexpr float popBumperRadius = 2.75f;
+
 DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c)
 {
-    float rb{2.75f};
+    float rb{popBumperRadius};
     float gap{0.45f};
     float rs{rb-gap};
     ptr = addCircleLines(ptr, c, rb);
@@ -599,7 +603,7 @@ DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c)
     return ptr;
 }
 
-DefaultVertex* addButton(DefaultVertex* ptr, Vec2 p0, Vec2 p1, float t)
+LineSegment* addButton(LineSegment* ptr, Vec2 p0, Vec2 p1, float t)
 {
     Vec2 D{p1-p0};
     Vec2 c{ p0 + D*t };
@@ -614,256 +618,6 @@ DefaultVertex* addButton(DefaultVertex* ptr, Vec2 p0, Vec2 p1, float t)
     Vec2 pts[4] = {q0,q1,q2,q3};
     ptr = addLineStrip(ptr, pts, 4);
     return ptr;
-}
-
-constexpr float flipperX{ 10.0f };
-constexpr float flipperY{ 7.0f };
-
-constexpr int numOneWayWalls = 2;
-
-struct Table
-{
-    DefaultVertex* tableVertsEnd;
-    float plungerCenterX;
-    float plungerTopY;
-
-    LineSegment oneWayWalls[numOneWayWalls];
-};
-
-Table constructTable(DefaultVertex* ptr)
-{
-    Table table;
-
-    const Vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
-
-    Line l0{ p0, Flipper::minAngle };
-    Line l1{ Line::vertical(-flipperX - 9.0f) };
-    // addLine(lines, l0);
-    // addLine(lines, l1);
-
-    const Vec2 p1{ findIntersection(l0, l1) };
-    const Vec2 p2{ p1 + Vec2{ 0.0f, 13.0f } };
-
-    // Angled wall right near the flipper
-    Vec2 strip1[] = { p0,p1,p2 };
-    ptr = addLineStripMirrored(ptr, strip1, ARRAY_LEN(strip1));
-
-    Line l2{ l0.parallel(-5.0f) };
-    // addLine(lines, l2);
-
-    Line l3{ l1.parallel(4.0f) };
-    // addLine(lines, l3);
-
-    Line l4{ Line::vertical(-flipperX - 4.5f) };
-    // addLine(lines, l4);
-
-    Line worldB{ Line::horizontal(Constants::worldB) };
-
-    // ditch
-    Vec2 pp1 = findIntersection(l1, l2);
-    Line ll1 = Line::horizontal(pp1.y - 3.0f);
-    Vec2 pp2 = findIntersection(l1, ll1);
-    Vec2 pp3 = findIntersection(ll1, l3);
-
-    const Vec2 p3{ findIntersection(l4, worldB) };
-    const Vec2 p4{ findIntersection(l2, l4) };
-    const Vec2 p6{ pp3.x, pp3.y + 20.0f };
-
-    // Outer wall near the flipper
-    Vec2 strip2[] = { p3,p4,pp1,pp2,pp3 };
-    ptr = addLineStripMirrored(ptr, strip2, ARRAY_LEN(strip2));
-    ptr = addLineSegment(ptr, pp3, p6);
-
-    // vertical wall near the right flipper
-    Vec2 pp3r = {-pp3.x, pp3.y};
-    Vec2 p8 = {pp3r.x, pp3r.y + 23.6f};
-    ptr = addLineSegment(ptr, pp3r, p8);
-
-    Vec2 p80 = findIntersection(l2, l3);
-    // ditch caps
-    ptr = addLineSegmentMirrored(ptr, pp1, p80);
-
-    // Construct slingshot
-    {
-        Line sL{ l1.parallel(-3.0f) };
-        // addLine(lines, sL);
-        Line sB{ l0.parallel(3.5f) };
-        // addLine(lines, sB);
-        Vec2 sLB{ findIntersection(sL, sB) };
-        Line sLB1{ sLB, radians(109.0f) };
-        // addLine(lines, sLB1, highlightCol);
-        Line sR{ sLB1.parallel(-4.0f) };
-        // addLine(lines, sR);
-        Vec2 sRB{ findIntersection(sR, sB) };
-        Vec2 sLR{ findIntersection(sL, sR) };
-
-        float LRr = 0.8f;
-        ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
-        ptr = addArcLinesMirrored(ptr, makeArc(apLR.pStart, apLR.pEnd, LRr), 8);
-
-        float RBr = 0.82f;
-        ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
-        ptr = addArcLinesMirrored(ptr, makeArc(apRB.pStart, apRB.pEnd, RBr), 8);
-
-        float LBr = 2.0f;
-        ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
-        ptr = addArcLinesMirrored(ptr, makeArc(apLB.pStart, apLB.pEnd, LBr), 8);
-
-        ptr = addLineSegmentMirrored(ptr, apLR.pStart, apRB.pEnd);
-        ptr = addLineSegmentMirrored(ptr, apRB.pStart, apLB.pEnd);
-        ptr = addLineSegmentMirrored(ptr, apLB.pStart, apLR.pEnd);
-    }
-
-#if 0
-    // Draw a border that represents the gameplay area
-    {
-        constexpr float d{ 0.1f };
-        // bottom
-        addLine(lines, Line::horizontal(Constants::worldB + d));
-        // top
-        addLine(lines, Line::horizontal(Constants::worldT - d));
-        // left
-        addLine(lines, Line::vertical(Constants::worldL + d));
-        // right
-        addLine(lines, Line::vertical(Constants::worldR - d));
-    }
-#endif
-
-    Vec2 p7{p2 + Vec2{2.0f, 7.0f}};
-
-    // left bottom arc
-    ptr = addArcLines(ptr, makeArc(p7, p6, 10.0f), 8);
-
-    Vec2 p9 = {p8.x-7.5f,p8.y+10.0f};
-    ptr = addArcLines(ptr, makeArc(p8, p9, 11.0f), 8);
-
-    Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
-    // addLine(lines, l3r);
-    Line l20 = l3r.parallel(-0.5f);
-    // addLine(lines, l20);
-    float plungerShuteWidth = 3.4f;
-    Line l21 = l20.parallel(-plungerShuteWidth);
-    // addLine(lines, l21);
-
-    Vec2 p20 = findIntersection(l20, worldB);
-    Vec2 p21 = findIntersection(l21, worldB);
-    float k20 = 48.0f;
-    Vec2 p22 = p20 + Vec2{0.0f, 1.0f} * k20;
-    Vec2 p23 = p21 + Vec2{0.0f, 1.0f} * k20;
-    // Plunger shaft
-    ptr = addLineSegment(ptr, p20, p22);
-    ptr = addLineSegment(ptr, p21, p23);
-
-    // Top of the plunger
-    Vec2 p30 = findIntersection(ll1, l20);
-    Vec2 p31 = findIntersection(ll1, l21);
-    ptr = addLineSegment(ptr, p30, p31);
-    table.plungerCenterX = ((p30 + p31) / 2.0f).x;
-    table.plungerTopY = p30.y;
-
-    float arc30r = 20.87f;
-    Vec2 arc30c = p23 + Vec2{-arc30r, 0.0f};
-    Arc arc30{ arc30c, arc30r, 0.0f, radians(90.0f) };
-    ptr = addArcLines(ptr, arc30);
-
-    float arc31r = 20.87f - plungerShuteWidth;
-    Arc arc31{ arc30c, arc31r, 0.0f, radians(84.0f) };
-    ptr = addArcLines(ptr, arc31);
-
-    // Right upper wall
-    Vec2 p10 = p9 + makeVec(radians(110.0f), 4.5f);
-    Vec2 p11 = p10 + makeVec(radians(31.0f), 5.3f);
-    Vec2 p12 = p11 + makeVec(radians(97.0f), 12.2f);
-    Vec2 p13 = p12 + makeVec(radians(150.0f), 10.85f);
-    Vec2 p14 = getArcEnd(arc31);
-    Vec2 strip3[] = { p9,p10,p11,p12,p13,p14 };
-    ptr = addLineStrip(ptr, strip3, ARRAY_LEN(strip3));
-
-    ptr = addButton(ptr, p9, p10, 0.5f);
-    ptr = addButton(ptr, p10, p11, 0.5f);
-    ptr = addButton(ptr, p11, p12, 0.3f);
-    ptr = addButton(ptr, p11, p12, 0.7f);
-    ptr = addButton(ptr, p12, p13, 0.5f);
-
-    Ray r30{ p14, normalize(p14-p13) };
-    Vec2 p15 = findIntersection(r30, arc30);
-    // right one-way wall
-    //ptr = addLineSegment(ptr, p14, p15);
-    table.oneWayWalls[0] = { p14,p15 };
-
-    Vec2 p40 = getArcEnd(arc30);
-    Vec2 p41 = p40 + Vec2{-7.68f, 0.0f};
-    // bridge between left and right arcs at the top of the table
-    ptr = addLineSegment(ptr, p40, p41);
-    // addCircleLines(lines, {p41, 0.5f});
-
-    // left top big arc
-    Arc a50 = makeArc(p41, p7, 20.8f);
-    ptr = addArcLines(ptr, a50);
-
-    // left small arc
-    Arc a51 = {a50.p, a50.r - plungerShuteWidth, radians(105.0f), radians(130.0f)};
-    ptr = addArcLines(ptr, a51);
-
-    // left medium arc
-    Arc a52 = {a50.p, a50.r - plungerShuteWidth, radians(150.0f), radians(205.0f)};
-    ptr = addArcLines(ptr, a52);
-
-    Vec2 a51s = getArcStart(a51);
-    Ray r51s{ a51.p, normalize(a51s - a51.p) };
-    // addRay(lines, r51s);
-
-    Vec2 a51e = getArcEnd(a51);
-    Ray r51e{ a51.p, normalize(a51e - a51.p) };
-    // addRay(lines, r51e);
-
-    Vec2 p50 = findIntersection(r51s, a50);
-    // left one-way wall
-    //ptr = addLineSegment(ptr, a51s, p50);
-    table.oneWayWalls[1] = { p50, a51s };
-
-    float w51 = 2.3f;
-    Vec2 p53 = a51s - r51s.d*w51;
-    Vec2 p54 = a51e - r51e.d*w51;
-
-    // left-top walled island
-    Vec2 strip4[] = { a51s,p53,p54,a51e };
-    ptr = addLineStrip(ptr, strip4, ARRAY_LEN(strip4));
-    ptr = addButton(ptr, p53, p54, 0.5f);
-
-    Vec2 a52s = getArcStart(a52);
-    Vec2 a52e = getArcEnd(a52);
-    Vec2 p60 = a52e + makeVec(radians(-32.5f), 3.6f);
-    Vec2 p61 = p60 + makeVec(radians(44.0f), 4.5f);
-    Vec2 p62 = p61 + makeVec(radians(167.6f), 4.3f);
-    // left-middle walled island
-    Vec2 strip5[] = { a52e,p60,p61,p62,a52s };
-    ptr = addLineStrip(ptr, strip5, ARRAY_LEN(strip5));
-    ptr = addButton(ptr, p61, p60, 0.5f);
-    ptr = addButton(ptr, p62, p61, 0.5f);
-    ptr = addButton(ptr, a52s, p62, 0.3f);
-    ptr = addButton(ptr, a52s, p62, 0.7f);
-
-    float capsuleGap = 4.3f;
-    float leftCapsuleX = -0.7f;
-    float rightCapsuleX = leftCapsuleX + capsuleGap;
-    float capsuleY = p53.y;
-    ptr = addCapsuleLines(ptr, {leftCapsuleX, capsuleY});
-    ptr = addCapsuleLines(ptr, {rightCapsuleX, capsuleY});
-
-    // Central vertical symmetry line
-    //addLine(lines, Line{ {0.0f,0.0f}, {0.0f,1.0f} });
-
-    Vec2 pb1{-4.0f, 53.0f};
-    Vec2 pb2{pb1.x+10.7f, pb1.y+0.5f};
-    Vec2 pb3{pb1.x+5.5f, pb1.y-7.5f};
-    ptr = addPopBumperLines(ptr, pb1);
-    ptr = addPopBumperLines(ptr, pb2);
-    ptr = addPopBumperLines(ptr, pb3);
-
-    table.tableVertsEnd = ptr;
-
-    return table;
 }
 
 static const char* const vertexCode = R"(
@@ -1034,32 +788,30 @@ static void makePlungerVerts(DefaultVertex* verts)
     assert(n == numPlungerVerts);
 }
 
-constexpr int tableVertsCap = 1024;
-static DefaultVertex g_tableVerts[tableVertsCap];
-
 static RenderData g_renderData;
 static StuffToRender g_stuffToRender;
-static SimState g_simState;
 
 static void render(RenderData* rd, StuffToRender* s)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // Draw moving circles
     for (int i = 0; i < numCircles; ++i)
     {
         Circle c = s->circles[i];
 
         float m[9];
-        m[0] = c.radius;  m[3] = 0.0f;      m[6] = c.center.x;
-        m[1] = 0.0f;      m[4] = c.radius;  m[7] = c.center.y;
-        m[2] = 0.0f;      m[5] = 0.0f;      m[8] = 1.0f;
+        m[0] = c.r;   m[3] = 0.0f;  m[6] = c.p.x;
+        m[1] = 0.0f;  m[4] = c.r;   m[7] = c.p.y;
+        m[2] = 0.0f;  m[5] = 0.0f;  m[8] = 1.0f;
         glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, m);
 
         glBindVertexArray(rd->circleVao);
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
     }
 
+    // Draw flippers
     for (int i = 0; i < numFlippers; ++i)
     {
         glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &s->flipperTransforms[i].m[0][0]);
@@ -1067,11 +819,12 @@ static void render(RenderData* rd, StuffToRender* s)
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
+    // Draw static lines
     glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
     glBindVertexArray(rd->lineVao);
     glDrawArrays(GL_LINES, 0, rd->numLineVerts);
 
-    // draw the plunger
+    // Draw the plunger
     {
         float m[9];
         m[0] = 1.0f;  m[3] = 0.0f;              m[6] = s->plungerCenterX;
@@ -1082,7 +835,7 @@ static void render(RenderData* rd, StuffToRender* s)
         glDrawArrays(GL_LINE_STRIP, 0, numPlungerVerts);
     }
 
-    // draw debug lines
+    // Draw debug lines
     {
         glBindVertexArray(rd->debugVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->debugVbo);
@@ -1197,34 +950,54 @@ void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relative
     }
 }
 
-void initRenderData(RenderData *rd, DefaultVertex* lineVerts, int numLineVerts)
+struct Collision
 {
-    rd->program = createShaderProgram(vertexCode, fragmentCode);
+    Vec2 normal;
+    float penetration;
+};
 
-    rd->modelLoc = glGetUniformLocation(rd->program, "model");
-    rd->viewLoc = glGetUniformLocation(rd->program, "view");
-    rd->projectionLoc = glGetUniformLocation(rd->program, "projection");
+Collision checkIntersection(const Circle& circ, const Arc& arc)
+{
+    Vec2 v{ normalize(circ.p - arc.p) * arc.r };
 
-    assert(rd->modelLoc >= 0);
-    assert(rd->viewLoc >= 0);
-    assert(rd->projectionLoc >= 0);
+    float a{ atan2f(v.y, v.x) };
+    if (a < 0.0f)
+    {
+        a += twoPi;
+    }
 
-    rd->lineVao = createVao(lineVerts, numLineVerts);
-    rd->numLineVerts = numLineVerts;
+    float b{ a - arc.start };
+    if (b < 0.0f) b += twoPi;
+    float end{ arc.end - arc.start };
+    if (end < 0.0f) end += twoPi;
 
-    DefaultVertex circleVerts[numCircleVerts];
-    makeCircleVerts(circleVerts);
-    rd->circleVao = createVao(circleVerts, numCircleVerts);
+    float closestAngle{};
+    if (b < end)
+    {
+        closestAngle = a;
+    }
+    else
+    {
+        if ((twoPi - b) < (b - end))
+        {
+            closestAngle = arc.start;
+        }
+        else
+        {
+            closestAngle = arc.end;
+        }
+    }
 
-    DefaultVertex flipperVerts[numFlipperVerts];
-    makeFlipperVerts(flipperVerts);
-    rd->flipperVao = createVao(flipperVerts, numFlipperVerts);
+    Vec2 w{ cosf(closestAngle), sinf(closestAngle) };
+    Vec2 closestPoint{ arc.p + w * arc.r };
+    Vec2 vv{ circ.p - closestPoint };
+    Vec2 normal{ normalize(vv) };
+    float penetration{ circ.r - getLength(vv) };
 
-    DefaultVertex plungerVerts[numPlungerVerts];
-    makePlungerVerts(plungerVerts);
-    rd->plungerVao = createVao(plungerVerts, numPlungerVerts);
-
-    rd->debugVao = createVao(nullptr, debugVertsCap, &rd->debugVbo);
+    return {
+        normal,
+        penetration,
+    };
 }
 
 int main()
@@ -1268,40 +1041,345 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
+    constexpr float flipperX{ 10.0f };
+    constexpr float flipperY{ 7.0f };
+
     RenderData* renderData = &g_renderData;
     StuffToRender* stuffToRender = &g_stuffToRender;
 
-    DefaultVertex* tableVerts = g_tableVerts;
+    constexpr int basicWallsCap = 70;
+    LineSegment basicWalls[basicWallsCap];
+    int numBasicWalls;
 
-    Table table = constructTable(tableVerts);
-    int numTableVerts = (int)(table.tableVertsEnd - tableVerts);
-    assert(numTableVerts <= tableVertsCap);
+    constexpr int oneWayWallsCap = 2;
+    LineSegment oneWayWalls[oneWayWallsCap];
+    int numOneWayWalls;
 
-    stuffToRender->plungerCenterX = table.plungerCenterX;
+    constexpr int arcsCap = 16;
+    Arc arcs[arcsCap];
+    int arcSteps[arcsCap];
+    int numArcs = 0;
 
-    SimState& simState{ g_simState };
-    simState.ball.p = {table.plungerCenterX, table.plungerTopY + 3.0f};
-    simState.flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
-    simState.flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
+#define ADD_ARC(arc, steps)    \
+    arcs[numArcs] = arc;       \
+    arcSteps[numArcs] = steps; \
+    ++numArcs;
 
-    assert(numTableVerts % 2 == 0);
-    simState.numLineSegments = numTableVerts / 2;
-    assert(simState.numLineSegments < lineSegmentsCap);
-    for (int i = 0; i < simState.numLineSegments; ++i)
+#define ADD_ARC_MIRRORED(arc, steps) \
+    ADD_ARC(arc, steps);             \
+    ADD_ARC(reflectArc(arc), steps);
+
+    constexpr int capsulesCap = 2;
+    Vec2 capsules[capsulesCap];
+    int numCapsules;
+
+    constexpr int popBumpersCap = 3;
+    Vec2 popBumpers[popBumpersCap];
+    int numPopBumpers;
+
+    float plungerCenterX;
+    float plungerTopY;
+
     {
-        simState.lineSegments[i].p0 = tableVerts[i*2].pos;
-        simState.lineSegments[i].p1 = tableVerts[i*2 + 1].pos;
+        LineSegment* basicWallsPtr = basicWalls;
+        LineSegment* oneWayWallsPtr = oneWayWalls;
+        Vec2* capsulesPtr = capsules;
+        Vec2* popBumpersPtr = popBumpers;
+
+        const Vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
+
+        Line l0{ p0, Flipper::minAngle };
+        Line l1{ Line::vertical(-flipperX - 9.0f) };
+
+        const Vec2 p1{ findIntersection(l0, l1) };
+        const Vec2 p2{ p1 + Vec2{ 0.0f, 13.0f } };
+
+        // Angled wall right near the flipper
+        Vec2 strip1[] = { p0,p1,p2 };
+        basicWallsPtr = addLineStripMirrored(basicWallsPtr, strip1, ARRAY_LEN(strip1));
+
+        Line l2{ l0.parallel(-5.0f) };
+        Line l3{ l1.parallel(4.0f) };
+        Line l4{ Line::vertical(-flipperX - 4.5f) };
+
+        Line worldB{ Line::horizontal(Constants::worldB) };
+
+        // ditch
+        Vec2 pp1 = findIntersection(l1, l2);
+        Line ll1 = Line::horizontal(pp1.y - 3.0f);
+        Vec2 pp2 = findIntersection(l1, ll1);
+        Vec2 pp3 = findIntersection(ll1, l3);
+
+        const Vec2 p3{ findIntersection(l4, worldB) };
+        const Vec2 p4{ findIntersection(l2, l4) };
+        const Vec2 p6{ pp3.x, pp3.y + 20.0f };
+
+        // Outer wall near the flipper
+        Vec2 strip2[] = { p3,p4,pp1,pp2,pp3 };
+        basicWallsPtr = addLineStripMirrored(basicWallsPtr, strip2, ARRAY_LEN(strip2));
+        *basicWallsPtr++ = {pp3, p6};
+
+        // vertical wall near the right flipper
+        Vec2 pp3r = { -pp3.x, pp3.y };
+        Vec2 p8 = { pp3r.x, pp3r.y + 23.6f };
+        *basicWallsPtr++ = {pp3r, p8};
+
+        Vec2 p80 = findIntersection(l2, l3);
+        // ditch caps
+        basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, pp1, p80);
+
+        // Construct slingshot
+        {
+            Line sL{ l1.parallel(-3.0f) };
+            Line sB{ l0.parallel(3.5f) };
+            Vec2 sLB{ findIntersection(sL, sB) };
+            Line sLB1{ sLB, radians(109.0f) };
+            Line sR{ sLB1.parallel(-4.0f) };
+            Vec2 sRB{ findIntersection(sR, sB) };
+            Vec2 sLR{ findIntersection(sL, sR) };
+
+            float LRr = 0.8f;
+            ArcPoints apLR = findArcBetweenLines(sLR, -sR.d, -sL.d, LRr);
+            Arc arcLR = makeArc(apLR.pStart, apLR.pEnd, LRr);
+            ADD_ARC_MIRRORED(arcLR, 8);
+
+            float RBr = 0.82f;
+            ArcPoints apRB = findArcBetweenLines(sRB, -sB.d, sR.d, RBr);
+            Arc arcRB = makeArc(apRB.pStart, apRB.pEnd, RBr);
+            ADD_ARC_MIRRORED(arcRB, 8);
+
+            float LBr = 2.0f;
+            ArcPoints apLB = findArcBetweenLines(sLB, sL.d, sB.d, LBr);
+            Arc arcLB = makeArc(apLB.pStart, apLB.pEnd, LBr);
+            ADD_ARC_MIRRORED(arcLB, 8);
+
+            basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apLR.pStart, apRB.pEnd);
+            basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apRB.pStart, apLB.pEnd);
+            basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apLB.pStart, apLR.pEnd);
+        }
+
+        Vec2 p7{ p2 + Vec2{2.0f, 7.0f} };
+
+        // left bottom arc
+        ADD_ARC(makeArc(p7, p6, 10.0f), 8);
+
+        Vec2 p9 = { p8.x - 7.5f,p8.y + 10.0f };
+        ADD_ARC(makeArc(p8, p9, 11.0f), 8);
+
+        Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
+        // addLine(lines, l3r);
+        Line l20 = l3r.parallel(-0.5f);
+        // addLine(lines, l20);
+        float plungerShuteWidth = 3.4f;
+        Line l21 = l20.parallel(-plungerShuteWidth);
+        // addLine(lines, l21);
+
+        Vec2 p20 = findIntersection(l20, worldB);
+        Vec2 p21 = findIntersection(l21, worldB);
+        float k20 = 48.0f;
+        Vec2 p22 = p20 + Vec2{ 0.0f, 1.0f } *k20;
+        Vec2 p23 = p21 + Vec2{ 0.0f, 1.0f } *k20;
+        // Plunger shaft
+        *basicWallsPtr++ = {p20, p22};
+        *basicWallsPtr++ = {p21, p23};
+
+        // Top of the plunger
+        Vec2 p30 = findIntersection(ll1, l20);
+        Vec2 p31 = findIntersection(ll1, l21);
+        *basicWallsPtr++ = {p30, p31};
+        plungerCenterX = ((p30 + p31) / 2.0f).x;
+        plungerTopY = p30.y;
+
+        float arc30r = 20.87f;
+        Vec2 arc30c = p23 + Vec2{ -arc30r, 0.0f };
+        Arc arc30{ arc30c, arc30r, 0.0f, radians(90.0f) };
+        ADD_ARC(arc30, 16);
+
+        float arc31r = 20.87f - plungerShuteWidth;
+        Arc arc31{ arc30c, arc31r, 0.0f, radians(84.0f) };
+        ADD_ARC(arc31, 16);
+
+        // Right upper wall
+        Vec2 p10 = p9 + makeVec2FromAngle(radians(110.0f), 4.5f);
+        Vec2 p11 = p10 + makeVec2FromAngle(radians(31.0f), 5.3f);
+        Vec2 p12 = p11 + makeVec2FromAngle(radians(97.0f), 12.2f);
+        Vec2 p13 = p12 + makeVec2FromAngle(radians(150.0f), 10.85f);
+        Vec2 p14 = getArcEnd(arc31);
+        Vec2 strip3[] = { p9,p10,p11,p12,p13,p14 };
+        basicWallsPtr = addLineStrip(basicWallsPtr, strip3, ARRAY_LEN(strip3));
+
+        basicWallsPtr = addButton(basicWallsPtr, p9, p10, 0.5f);
+        basicWallsPtr = addButton(basicWallsPtr, p10, p11, 0.5f);
+        basicWallsPtr = addButton(basicWallsPtr, p11, p12, 0.3f);
+        basicWallsPtr = addButton(basicWallsPtr, p11, p12, 0.7f);
+        basicWallsPtr = addButton(basicWallsPtr, p12, p13, 0.5f);
+
+        Ray r30{ p14, normalize(p14 - p13) };
+        Vec2 p15 = findIntersection(r30, arc30);
+        // right one-way wall
+        *oneWayWallsPtr++ = { p14,p15 };
+
+        Vec2 p40 = getArcEnd(arc30);
+        Vec2 p41 = p40 + Vec2{ -7.68f, 0.0f };
+        // bridge between left and right arcs at the top of the table
+        *basicWallsPtr++ = {p40, p41};
+
+        // left top big arc
+        Arc a50 = makeArc(p41, p7, 20.8f);
+        ADD_ARC(a50, 16);
+
+        // left small arc
+        Arc a51 = { a50.p, a50.r - plungerShuteWidth, radians(105.0f), radians(130.0f) };
+        ADD_ARC(a51, 16);
+
+        // left medium arc
+        Arc a52 = { a50.p, a50.r - plungerShuteWidth, radians(150.0f), radians(205.0f) };
+        ADD_ARC(a52, 16);
+
+        Vec2 a51s = getArcStart(a51);
+        Ray r51s{ a51.p, normalize(a51s - a51.p) };
+        // addRay(lines, r51s);
+
+        Vec2 a51e = getArcEnd(a51);
+        Ray r51e{ a51.p, normalize(a51e - a51.p) };
+        // addRay(lines, r51e);
+
+        Vec2 p50 = findIntersection(r51s, a50);
+        // left one-way wall
+        *oneWayWallsPtr++ = { p50, a51s };
+
+        float w51 = 2.3f;
+        Vec2 p53 = a51s - r51s.d * w51;
+        Vec2 p54 = a51e - r51e.d * w51;
+
+        // left-top walled island
+        Vec2 strip4[] = { a51s,p53,p54,a51e };
+        basicWallsPtr = addLineStrip(basicWallsPtr, strip4, ARRAY_LEN(strip4));
+        basicWallsPtr = addButton(basicWallsPtr, p53, p54, 0.5f);
+
+        Vec2 a52s = getArcStart(a52);
+        Vec2 a52e = getArcEnd(a52);
+        Vec2 p60 = a52e + makeVec2FromAngle(radians(-32.5f), 3.6f);
+        Vec2 p61 = p60 + makeVec2FromAngle(radians(44.0f), 4.5f);
+        Vec2 p62 = p61 + makeVec2FromAngle(radians(167.6f), 4.3f);
+        // left-middle walled island
+        Vec2 strip5[] = { a52e,p60,p61,p62,a52s };
+        basicWallsPtr = addLineStrip(basicWallsPtr, strip5, ARRAY_LEN(strip5));
+        basicWallsPtr = addButton(basicWallsPtr, p61, p60, 0.5f);
+        basicWallsPtr = addButton(basicWallsPtr, p62, p61, 0.5f);
+        basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.3f);
+        basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.7f);
+
+        float capsuleGap = 4.3f;
+        float leftCapsuleX = -0.7f;
+        float rightCapsuleX = leftCapsuleX + capsuleGap;
+        float capsuleY = p53.y;
+        *capsulesPtr++ = { leftCapsuleX, capsuleY };
+        *capsulesPtr++ = { rightCapsuleX, capsuleY };
+
+        Vec2 pb1{ -4.0f, 53.0f };
+        Vec2 pb2{ pb1.x + 10.7f, pb1.y + 0.5f };
+        Vec2 pb3{ pb1.x + 5.5f, pb1.y - 7.5f };
+        *popBumpersPtr++ = pb1;
+        *popBumpersPtr++ = pb2;
+        *popBumpersPtr++ = pb3;
+
+        numBasicWalls = (int)(basicWallsPtr - basicWalls);
+        numOneWayWalls = (int)(oneWayWallsPtr - oneWayWalls);
+        numCapsules = (int)(capsulesPtr - capsules);
+        numPopBumpers = (int)(popBumpersPtr - popBumpers);
+
+        assert(numBasicWalls <= basicWallsCap);
+        assert(numOneWayWalls <= oneWayWallsCap);
+        assert(numArcs <= arcsCap);
+        assert(numCapsules <= capsulesCap);
+        assert(numPopBumpers <= popBumpersCap);
     }
+
+#undef ADD_ARC_MIRRORED
+#undef ADD_ARC
+
+    stuffToRender->plungerCenterX = plungerCenterX;
+
+    Ball ball;
+    ball.p = {plungerCenterX, plungerTopY + 3.0f};
+    ball.v = {};
+
+    Flipper flippers[numFlippers];
+    flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
+    flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
 
     float plungerT = 0.0f;
     constexpr float plungerDownSpeed = 1.0f;
 
-    // HACK!
-    table.tableVertsEnd = addLineSegment(table.tableVertsEnd, table.oneWayWalls[0].p0, table.oneWayWalls[0].p1, oneWayWallsColor);
-    table.tableVertsEnd = addLineSegment(table.tableVertsEnd, table.oneWayWalls[1].p0, table.oneWayWalls[1].p1, oneWayWallsColor);
-    numTableVerts += 4;
+    // Initialize render data
+    {
+        renderData->program = createShaderProgram(vertexCode, fragmentCode);
 
-    initRenderData(renderData, tableVerts, numTableVerts);
+        renderData->modelLoc = glGetUniformLocation(renderData->program, "model");
+        renderData->viewLoc = glGetUniformLocation(renderData->program, "view");
+        renderData->projectionLoc = glGetUniformLocation(renderData->program, "projection");
+
+        assert(renderData->modelLoc >= 0);
+        assert(renderData->viewLoc >= 0);
+        assert(renderData->projectionLoc >= 0);
+
+        constexpr int lineVertsCap = 900;
+        DefaultVertex lineVerts[lineVertsCap];
+        int numLineVerts;
+
+        // Fill lineVerts
+        {
+            DefaultVertex* ptr = lineVerts;
+
+            for (int i = 0; i < numBasicWalls; ++i)
+            {
+                *ptr++ = { basicWalls[i].p0, defCol };
+                *ptr++ = { basicWalls[i].p1, defCol };
+            }
+
+            for (int i = 0; i < numOneWayWalls; ++i)
+            {
+                *ptr++ = { oneWayWalls[i].p0, oneWayWallsColor };
+                *ptr++ = { oneWayWalls[i].p1, oneWayWallsColor };
+            }
+
+            for (int i = 0; i < numArcs; ++i)
+            {
+                ptr = addArcLines(ptr, arcs[i], arcSteps[i]);
+            }
+
+            for (int i = 0; i < numCapsules; ++i)
+            {
+                ptr = addCapsuleLines(ptr, capsules[i]);
+            }
+
+            for (int i = 0; i < numPopBumpers; ++i)
+            {
+                ptr = addPopBumperLines(ptr, popBumpers[i]);
+            }
+
+            numLineVerts = (int)(ptr - lineVerts);
+            assert(numLineVerts <= lineVertsCap);
+        }
+
+        renderData->lineVao = createVao(lineVerts, numLineVerts);
+        renderData->numLineVerts = numLineVerts;
+
+        DefaultVertex circleVerts[numCircleVerts];
+        makeCircleVerts(circleVerts);
+        renderData->circleVao = createVao(circleVerts, numCircleVerts);
+
+        DefaultVertex flipperVerts[numFlipperVerts];
+        makeFlipperVerts(flipperVerts);
+        renderData->flipperVao = createVao(flipperVerts, numFlipperVerts);
+
+        DefaultVertex plungerVerts[numPlungerVerts];
+        makePlungerVerts(plungerVerts);
+        renderData->plungerVao = createVao(plungerVerts, numPlungerVerts);
+
+        renderData->debugVao = createVao(nullptr, debugVertsCap, &renderData->debugVbo);
+    }
 
     Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
 
@@ -1336,20 +1414,20 @@ int main()
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
         {
-            simState.flippers[0].angularVelocity = maxAngularVelocity;
+            flippers[0].angularVelocity = maxAngularVelocity;
         }
         else
         {
-            simState.flippers[0].angularVelocity = -maxAngularVelocity;
+            flippers[0].angularVelocity = -maxAngularVelocity;
         }
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
         {
-            simState.flippers[1].angularVelocity = -maxAngularVelocity;
+            flippers[1].angularVelocity = -maxAngularVelocity;
         }
         else
         {
-            simState.flippers[1].angularVelocity = maxAngularVelocity;
+            flippers[1].angularVelocity = maxAngularVelocity;
         }
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
@@ -1363,11 +1441,11 @@ int main()
         else
         {
             constexpr float plungerImpulse = 200.0f;
-            bool ballIsOnTopOfPlunger = fabsf((simState.ball.p.y - 1.0f) - table.plungerTopY) < 0.5f;
+            bool ballIsOnTopOfPlunger = fabsf((ball.p.y - 1.0f) - plungerTopY) < 0.5f;
             if (ballIsOnTopOfPlunger)
             {
                 // Launch the ball
-                simState.ball.v.y += plungerImpulse * plungerT;
+                ball.v.y += plungerImpulse * plungerT;
             }
             plungerT = 0.0f;
         }
@@ -1383,14 +1461,21 @@ int main()
             // Update ball
             {
                 constexpr Vec2 gravity = { 0.0f, -80.0f };
-                simState.ball.v += gravity * simDt;
-                simState.ball.p += simState.ball.v * simDt;
+                ball.v += gravity * simDt;
+
+                const float maxSpeed{ ballRadius * simFps * 0.9f };
+                if (getLength(ball.v) > maxSpeed)
+                {
+                    ball.v = normalize(ball.v) * maxSpeed;
+                }
+
+                ball.p += ball.v * simDt;
             }
 
             // Update flippers
             for (int i = 0; i < numFlippers; ++i)
             {
-                Flipper* f = &simState.flippers[i];
+                Flipper* f = &flippers[i];
                 f->orientation += f->angularVelocity * simDt;
                 if (f->orientation < Flipper::minAngle)
                 {
@@ -1410,68 +1495,117 @@ int main()
             // Check collision of ball and flippers
             for (int i{ 0 }; i < numFlippers; ++i)
             {
-                Flipper* flipper{ &simState.flippers[i] };
+                Flipper* flipper{ &flippers[i] };
                 Vec2 p0{ makeVec2(flipper->transform * Vec3{0.0f, 0.0f, 1.0f}) };
                 Vec2 p1{ makeVec2(flipper->transform * Vec3{Flipper::d, 0.0f, 1.0f}) };
                 Vec2 line{ p1 - p0 };
                 Vec2 lineDir{ normalize(line) };
-                float t{ clamp(dot(simState.ball.p - p0, lineDir) / getLength(line), 0.0f, 1.0f) };
+                float t{ clamp(dot(ball.p - p0, lineDir) / getLength(line), 0.0f, 1.0f) };
                 float r{ lerp(Flipper::r0, Flipper::r1, t) };
                 Vec2 closestPoint{ p0 + line * t };
-                float dist{ getDistance(closestPoint, simState.ball.p) };
+                float dist{ getDistance(closestPoint, ball.p) };
                 float penetration = (r + ballRadius) - dist;
-                Vec2 normal = normalize(simState.ball.p - closestPoint);
+                Vec2 normal = normalize(ball.p - closestPoint);
                 if (penetration >= 0.0f)
                 {
-                    Vec2 pointOnFlipperWorld{ simState.ball.p - normal * (ballRadius - penetration) };
+                    Vec2 pointOnFlipperWorld{ ball.p - normal * (ballRadius - penetration) };
                     Vec2 pointOnFlipperLocal{ pointOnFlipperWorld - flipper->position };
                     Vec2 pointOnFlipperVelocity{ flipper->angularVelocity * perp(pointOnFlipperLocal) };
-                    Vec2 relativeVelocity{ simState.ball.v - pointOnFlipperVelocity };
+                    Vec2 relativeVelocity{ ball.v - pointOnFlipperVelocity };
                     float relativeNormalVelocity{ dot(relativeVelocity, normal) };
-                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
                 }
             }
 
-            // Check collisions of ball and line segments
-            for (int i = 0; i < simState.numLineSegments; ++i)
+            // Check collisions of ball and basic walls
+            for (int i = 0; i < numBasicWalls; ++i)
             {
-                Vec2 p0 = simState.lineSegments[i].p0;
-                Vec2 p1 = simState.lineSegments[i].p1;
+                Vec2 p0 = basicWalls[i].p0;
+                Vec2 p1 = basicWalls[i].p1;
                 Vec2 L = p1 - p0;
                 float segmentLength = getLength(L);
                 Vec2 dir = L / segmentLength;
-                float t = clamp(dot(simState.ball.p - p0, dir), 0.0f, segmentLength);
+                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
                 Vec2 closestPoint = p0 + t * dir;
-                float dist = getDistance(simState.ball.p, closestPoint);
+                float dist = getDistance(ball.p, closestPoint);
                 float penetration = ballRadius - dist;
                 if (penetration >= 0.0f)
                 {
-                    Vec2 normal = normalize(simState.ball.p - closestPoint);
-                    Vec2 relativeVelocity = simState.ball.v; // line segment is stationary
+                    Vec2 normal = normalize(ball.p - closestPoint);
+                    Vec2 relativeVelocity = ball.v; // line segment is stationary
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
-                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
                 }
             }
 
             // Check collisions of ball and one-way walls
             for (int i = 0; i < numOneWayWalls; ++i)
             {
-                Vec2 p0 = table.oneWayWalls[i].p0;
-                Vec2 p1 = table.oneWayWalls[i].p1;
+                Vec2 p0 = oneWayWalls[i].p0;
+                Vec2 p1 = oneWayWalls[i].p1;
                 Vec2 L = p1 - p0;
                 float segmentLength = getLength(L);
                 Vec2 dir = L / segmentLength;
-                float t = clamp(dot(simState.ball.p - p0, dir), 0.0f, segmentLength);
+                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
                 Vec2 closestPoint = p0 + t * dir;
-                float dist = getDistance(simState.ball.p, closestPoint);
+                float dist = getDistance(ball.p, closestPoint);
                 float penetration = ballRadius - dist;
-                bool ballIsOnCollidinSide = perpDot(L, simState.ball.p - p0) >= 0.0f;
+                bool ballIsOnCollidinSide = perpDot(L, ball.p - p0) >= 0.0f;
                 if (penetration >= 0.0f && ballIsOnCollidinSide)
                 {
-                    Vec2 normal = normalize(simState.ball.p - closestPoint);
-                    Vec2 relativeVelocity = simState.ball.v; // line segment is stationary
+                    Vec2 normal = normalize(ball.p - closestPoint);
+                    Vec2 relativeVelocity = ball.v; // line segment is stationary
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
-                    resolveCollision(&simState.ball, normal, penetration, relativeNormalVelocity);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and arcs
+            for (int i = 0; i < numArcs; ++i)
+            {
+                Circle circ{ ball.p, ballRadius };
+                Collision c{ checkIntersection(circ, arcs[i])};
+                if (c.penetration >= 0.0f)
+                {
+                    Vec2 relativeVelocity{ ball.v };
+                    float relativeNormalVelocity{ dot(relativeVelocity, c.normal) };
+                    resolveCollision(&ball, c.normal, c.penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and capsules
+            for (int i = 0; i < numCapsules; ++i)
+            {
+                Vec2 capsuleCenter = capsules[i];
+                Vec2 hh = { 0.0f, capsuleHalfHeight };
+                Vec2 p0{ capsuleCenter - hh };
+                Vec2 p1{ capsuleCenter + hh };
+                Vec2 line{ p1 - p0 };
+                Vec2 lineDir{ normalize(line) };
+                float t{ clamp(dot(ball.p - p0, lineDir) / getLength(line), 0.0f, 1.0f) };
+                Vec2 closestPoint{ p0 + line * t };
+                float dist{ getDistance(closestPoint, ball.p) };
+                float penetration = (capsuleRadius + ballRadius) - dist;
+                Vec2 normal = normalize(ball.p - closestPoint);
+                if (penetration >= 0.0f)
+                {
+                    Vec2 relativeVelocity{ ball.v };
+                    float relativeNormalVelocity{ dot(relativeVelocity, normal) };
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and pop bumpers
+            for (int i = 0; i < numPopBumpers; ++i)
+            {
+                float dist{ getDistance(ball.p, popBumpers[i]) };
+                float penetration = (ballRadius + popBumperRadius) - dist;
+                Vec2 normal = normalize(ball.p - popBumpers[i]);
+                if (penetration >= 0.0f)
+                {
+                    Vec2 relativeVelocity{ ball.v };
+                    float relativeNormalVelocity{ dot(relativeVelocity, normal) };
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity, 6.0f);
                 }
             }
         }
@@ -1480,14 +1614,14 @@ int main()
         // Render the frame
         //
 
-        stuffToRender->circles[0] = {simState.ball.p, ballRadius};
+        stuffToRender->circles[0] = {ball.p, ballRadius};
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            stuffToRender->flipperTransforms[i] = simState.flippers[i].transform;
+            stuffToRender->flipperTransforms[i] = flippers[i].transform;
         }
 
-        stuffToRender->plungerScaleY = table.plungerTopY * (1.0f - plungerT);
+        stuffToRender->plungerScaleY = plungerTopY * (1.0f - plungerT);
 
         render(renderData, stuffToRender);
 
