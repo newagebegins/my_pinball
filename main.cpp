@@ -982,11 +982,14 @@ void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relative
     {
         ball->p += normal * penetration;
 
-        // Add random offset to the normal
-        constexpr float delta = radians(5.0f);
-        float angle = getRandomFloat(-delta, delta);
-        Mat2 rotation = makeRotationMat2(angle);
-        normal = rotation * normal;
+        if (bounciness > 1.0f)
+        {
+            // Add random offset to the normal
+            constexpr float delta = radians(5.0f);
+            float angle = getRandomFloat(-delta, delta);
+            Mat2 rotation = makeRotationMat2(angle);
+            normal = rotation * normal;
+        }
 
         Vec2 tangent = perp(normal);
 
