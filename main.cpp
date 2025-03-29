@@ -601,7 +601,7 @@ Vec2 findIntersection(const Ray& r, const Arc& a)
 }
 
 constexpr float capsuleHalfHeight = 0.7f;
-constexpr float capsuleRadius = 0.3f;
+constexpr float capsuleRadius = 0.2f;
 
 DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 {
@@ -615,7 +615,7 @@ DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
     *ptr++ = {bl, defCol};
     *ptr++ = {tr, defCol};
     *ptr++ = {br, defCol};
-    int s = 8;
+    int s = 4;
     ptr = addArcLines(ptr, makeArc(tr, tl, hw), s);
     ptr = addArcLines(ptr, makeArc(bl, br, hw), s);
     return ptr;
@@ -1154,11 +1154,17 @@ int main()
         Line l1{ Line::vertical(-flipperX - 9.0f) };
 
         const Vec2 p1{ findIntersection(l0, l1) };
-        const Vec2 p2{ p1 + Vec2{ 0.0f, 13.0f } };
+        const Vec2 p2{ p1 + Vec2{ 0.0f, 14.0f } };
 
         // Angled wall right near the flipper
         Vec2 strip1[] = { p0,p1,p2 };
-        basicWallsPtr = addLineStripMirrored(basicWallsPtr, strip1, ARRAY_LEN(strip1));
+        basicWallsPtr = addLineStrip(basicWallsPtr, strip1, ARRAY_LEN(strip1));
+
+        Vec2 p0r = reflect(p0);
+        Vec2 p1r = reflect(p1);
+        Vec2 p2r = p1r + Vec2{ 0.0f, 16.0f };
+        Vec2 strip1r[] = { p0r,p1r,p2r };
+        basicWallsPtr = addLineStrip(basicWallsPtr, strip1r, ARRAY_LEN(strip1r));
 
         Line l2{ l0.parallel(-5.0f) };
         Line l3{ l1.parallel(4.0f) };
@@ -1328,7 +1334,7 @@ int main()
         basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.7f);
 
         float capsuleGap = 3.0f;
-        float leftCapsuleX = -0.1f;
+        float leftCapsuleX = 0.0f;
         float rightCapsuleX = leftCapsuleX + capsuleGap;
         float capsuleY = p53.y;
         *capsulesPtr++ = { leftCapsuleX, capsuleY };
