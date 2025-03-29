@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -1037,6 +1038,8 @@ Collision checkIntersection(const Circle& circ, const Arc& arc)
 
 int main()
 {
+    srand((unsigned int)time(NULL));
+
     glfwSetErrorCallback(errorCallback);
 
     if (!glfwInit())
