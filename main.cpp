@@ -1051,6 +1051,10 @@ int main()
     LineSegment basicWalls[basicWallsCap];
     int numBasicWalls;
 
+    constexpr int slingshotWallsCap = 2;
+    LineSegment slingshotWalls[slingshotWallsCap];
+    int numSlingshotWalls;
+
     constexpr int oneWayWallsCap = 2;
     LineSegment oneWayWalls[oneWayWallsCap];
     int numOneWayWalls;
@@ -1082,6 +1086,7 @@ int main()
 
     {
         LineSegment* basicWallsPtr = basicWalls;
+        LineSegment* slingshotWallsPtr = slingshotWalls;
         LineSegment* oneWayWallsPtr = oneWayWalls;
         Vec2* capsulesPtr = capsules;
         Vec2* popBumpersPtr = popBumpers;
@@ -1153,7 +1158,7 @@ int main()
             Arc arcLB = makeArc(apLB.pStart, apLB.pEnd, LBr);
             ADD_ARC_MIRRORED(arcLB, 8);
 
-            basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apLR.pStart, apRB.pEnd);
+            slingshotWallsPtr = addLineSegmentMirrored(slingshotWallsPtr, apLR.pStart, apRB.pEnd);
             basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apRB.pStart, apLB.pEnd);
             basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, apLB.pStart, apLR.pEnd);
         }
@@ -1167,12 +1172,9 @@ int main()
         ADD_ARC(makeArc(p8, p9, 11.0f), 8);
 
         Line l3r{ {-l3.p.x,l3.p.y}, l3.d };
-        // addLine(lines, l3r);
         Line l20 = l3r.parallel(-0.5f);
-        // addLine(lines, l20);
         float plungerShuteWidth = 3.4f;
         Line l21 = l20.parallel(-plungerShuteWidth);
-        // addLine(lines, l21);
 
         Vec2 p20 = findIntersection(l20, worldB);
         Vec2 p21 = findIntersection(l21, worldB);
@@ -1238,11 +1240,9 @@ int main()
 
         Vec2 a51s = getArcStart(a51);
         Ray r51s{ a51.p, normalize(a51s - a51.p) };
-        // addRay(lines, r51s);
 
         Vec2 a51e = getArcEnd(a51);
         Ray r51e{ a51.p, normalize(a51e - a51.p) };
-        // addRay(lines, r51e);
 
         Vec2 p50 = findIntersection(r51s, a50);
         // left one-way wall
@@ -1285,11 +1285,13 @@ int main()
         *popBumpersPtr++ = pb3;
 
         numBasicWalls = (int)(basicWallsPtr - basicWalls);
+        numSlingshotWalls = (int)(slingshotWallsPtr - slingshotWalls);
         numOneWayWalls = (int)(oneWayWallsPtr - oneWayWalls);
         numCapsules = (int)(capsulesPtr - capsules);
         numPopBumpers = (int)(popBumpersPtr - popBumpers);
 
         assert(numBasicWalls <= basicWallsCap);
+        assert(numSlingshotWalls <= slingshotWallsCap);
         assert(numOneWayWalls <= oneWayWallsCap);
         assert(numArcs <= arcsCap);
         assert(numCapsules <= capsulesCap);
@@ -1338,6 +1340,12 @@ int main()
             {
                 *ptr++ = { basicWalls[i].p0, defCol };
                 *ptr++ = { basicWalls[i].p1, defCol };
+            }
+
+            for (int i = 0; i < numSlingshotWalls; ++i)
+            {
+                *ptr++ = { slingshotWalls[i].p0, defCol };
+                *ptr++ = { slingshotWalls[i].p1, defCol };
             }
 
             for (int i = 0; i < numOneWayWalls; ++i)
@@ -1546,6 +1554,30 @@ int main()
                 }
             }
 
+            constexpr float popBumperBounciness = 6.0f;
+            constexpr float slingshotBounciness = 6.0f;
+
+            // Check collisions of ball and slingshot walls
+            for (int i = 0; i < numSlingshotWalls; ++i)
+            {
+                Vec2 p0 = slingshotWalls[i].p0;
+                Vec2 p1 = slingshotWalls[i].p1;
+                Vec2 L = p1 - p0;
+                float segmentLength = getLength(L);
+                Vec2 dir = L / segmentLength;
+                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
+                Vec2 closestPoint = p0 + t * dir;
+                float dist = getDistance(ball.p, closestPoint);
+                float penetration = ballRadius - dist;
+                if (penetration >= 0.0f)
+                {
+                    Vec2 normal = normalize(ball.p - closestPoint);
+                    Vec2 relativeVelocity = ball.v; // line segment is stationary
+                    float relativeNormalVelocity = dot(relativeVelocity, normal);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity, slingshotBounciness);
+                }
+            }
+
             // Check collisions of ball and one-way walls
             for (int i = 0; i < numOneWayWalls; ++i)
             {
@@ -1613,7 +1645,7 @@ int main()
                 {
                     Vec2 relativeVelocity{ ball.v };
                     float relativeNormalVelocity{ dot(relativeVelocity, normal) };
-                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity, 6.0f);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity, popBumperBounciness);
                 }
             }
         }
