@@ -1507,12 +1507,12 @@ int main()
         }
         else
         {
-            constexpr float plungerImpulse = 200.0f;
+            constexpr float plungerImpulse = 300.0f;
             bool ballIsOnTopOfPlunger = fabsf((ball.p.y - 1.0f) - plungerTopY) < 0.5f;
             if (ballIsOnTopOfPlunger)
             {
                 // Launch the ball
-                ball.v.y += plungerImpulse * plungerT;
+                ball.v.y += plungerImpulse * plungerT * getRandomFloat(0.8f, 1.2f);
             }
             plungerT = 0.0f;
         }
@@ -1530,7 +1530,7 @@ int main()
                 constexpr Vec2 gravity = { 0.0f, -80.0f };
                 ball.v += gravity * simDt;
 
-                const float maxSpeed{ ballRadius * simFps * 0.9f };
+                const float maxSpeed{ ballRadius * simFps * 0.99f };
                 if (getLength(ball.v) > maxSpeed)
                 {
                     ball.v = normalize(ball.v) * maxSpeed;
