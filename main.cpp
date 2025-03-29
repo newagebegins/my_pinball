@@ -982,16 +982,16 @@ void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relative
     {
         ball->p += normal * penetration;
 
-        Vec2 tangent = perp(normal);
-
-        float initNormalSpeed = dot(ball->v, normal);
-        float initTangentSpeed = dot(ball->v, tangent);
-
         // Add random offset to the normal
         constexpr float delta = radians(5.0f);
         float angle = getRandomFloat(-delta, delta);
         Mat2 rotation = makeRotationMat2(angle);
-        Vec2 dir = rotation * normal;
+        normal = rotation * normal;
+
+        Vec2 tangent = perp(normal);
+
+        float initNormalSpeed = dot(ball->v, normal);
+        float initTangentSpeed = dot(ball->v, tangent);
 
         constexpr float friction = 0.99f;
 
