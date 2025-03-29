@@ -10,6 +10,9 @@
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
+constexpr float pi{ 3.14159265f };
+constexpr float twoPi{ 2.0f * pi };
+
 // Ball's radius is 1.0f, everything is measured relative to that
 constexpr float ballRadius = 1.0f;
 
@@ -179,6 +182,37 @@ Vec2 operator*(Mat2 m, Vec2 v)
     };
 }
 
+Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
+{
+    return { cosf(angle) * len, sinf(angle) * len };
+}
+
+// Reflect around Y axis
+Vec2 reflect(Vec2 v)
+{
+    return { -v.x, v.y };
+}
+
+float getAngle(Vec2 v)
+{
+    float a = atan2f(v.y, v.x);
+    if (fabsf(a) < 0.000001f)
+    {
+        a = 0.0f;
+    }
+    else if (a < 0)
+    {
+        a += twoPi;
+    }
+    return a;
+}
+
+// Reflect around Y axis
+float reflectAngle(float angle)
+{
+    return getAngle(reflect(makeVec2FromAngle(angle)));
+}
+
 struct Circle
 {
     Vec2 p;
@@ -237,9 +271,6 @@ namespace Constants
     constexpr float worldB{ 0.0f };
 }
 
-constexpr float pi{ 3.14159265f };
-constexpr float twoPi{ 2.0f * pi };
-
 struct Arc
 {
     Vec2 p;
@@ -255,6 +286,9 @@ constexpr float radians(float deg)
     return pi * deg / 180.0f;
 }
 
+constexpr float leftFlipperMinAngle{ radians(-38.0f) };
+constexpr float leftFlipperMaxAngle{ radians(33.0f) };
+
 struct Flipper
 {
     static constexpr float r0{ 1.1f };
@@ -262,13 +296,11 @@ struct Flipper
     static constexpr float width{ 8.0f };
     static constexpr float d{ width - r0 - r1 };
 
-    static constexpr float minAngle{ radians(-38.0f) };
-    static constexpr float maxAngle{ radians(33.0f) };
-
     Mat3 transform;
     Vec2 position;
+    float minAngle;
+    float maxAngle;
     float orientation;
-    float scaleX;
     float angularVelocity;
 };
 
@@ -277,9 +309,9 @@ void updateTransform(Flipper* f)
     float c = cosf(f->orientation);
     float s = sinf(f->orientation);
 
-    // T*R*S matrix
-    f->transform.m[0][0] = c * f->scaleX;
-    f->transform.m[0][1] = s * f->scaleX;
+    // T*R matrix
+    f->transform.m[0][0] = c;
+    f->transform.m[0][1] = s;
     f->transform.m[0][2] = 0.0f;
 
     f->transform.m[1][0] = -s;
@@ -295,9 +327,10 @@ Flipper makeFlipper(Vec2 position, bool isLeft)
 {
     Flipper f;
     f.position = position;
-    f.orientation = 0.0f;
-    f.scaleX = isLeft ? 1.0f : -1.0f;
-    f.angularVelocity = -maxAngularVelocity;
+    f.minAngle = isLeft ? leftFlipperMinAngle : reflectAngle(leftFlipperMaxAngle);
+    f.maxAngle = isLeft ? leftFlipperMaxAngle : reflectAngle(leftFlipperMinAngle);
+    f.orientation = isLeft ? f.minAngle : f.maxAngle;
+    f.angularVelocity = 0.0f;
     updateTransform(&f);
     return f;
 }
@@ -456,20 +489,6 @@ Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
     return O;
 }
 
-float getAngle(Vec2 v)
-{
-    float a = atan2f(v.y, v.x);
-    if (fabsf(a) < 0.000001f)
-    {
-        a = 0.0f;
-    }
-    else if (a < 0)
-    {
-        a += twoPi;
-    }
-    return a;
-}
-
 // Circular through 2 points
 Arc makeArc(Vec2 pStart, Vec2 pEnd, float r)
 {
@@ -533,26 +552,13 @@ DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32
     return ptr;
 }
 
-Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
-{
-    return { cosf(angle) * len, sinf(angle) * len };
-}
-
-// Reflect around Y axis
-Vec2 reflect(Vec2 v)
-{
-    return {-v.x, v.y};
-}
-
 Arc reflectArc(const Arc& arc)
 {
     Arc result;
     result.p = reflect(arc.p);
     result.r = arc.r;
-    Vec2 reflectedStart = reflect(makeVec2FromAngle(arc.start));
-    Vec2 reflectedEnd = reflect(makeVec2FromAngle(arc.end));
-    result.start = getAngle(reflectedEnd);
-    result.end = getAngle(reflectedStart);
+    result.start = reflectAngle(arc.end);
+    result.end = reflectAngle(arc.start);
     return result;
 }
 
@@ -1131,7 +1137,7 @@ int main()
 
         const Vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
-        Line l0{ p0, Flipper::minAngle };
+        Line l0{ p0, leftFlipperMinAngle };
         Line l1{ Line::vertical(-flipperX - 9.0f) };
 
         const Vec2 p1{ findIntersection(l0, l1) };
@@ -1530,16 +1536,8 @@ int main()
             for (int i = 0; i < numFlippers; ++i)
             {
                 Flipper* f = &flippers[i];
-                f->orientation += f->angularVelocity * simDt;
-                if (f->orientation < Flipper::minAngle)
-                {
-                    f->orientation = Flipper::minAngle;
-                }
-                else if (f->orientation > Flipper::maxAngle)
-                {
-                    f->orientation = Flipper::maxAngle;
-                }
-                if (f->orientation == Flipper::minAngle || f->orientation == Flipper::maxAngle)
+                f->orientation = clamp(f->orientation + f->angularVelocity * simDt, f->minAngle, f->maxAngle);
+                if (f->orientation == f->minAngle || f->orientation == f->maxAngle)
                 {
                     f->angularVelocity = 0.0f;
                 }
