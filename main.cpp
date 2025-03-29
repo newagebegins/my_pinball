@@ -428,6 +428,17 @@ DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
     return ptr;
 }
 
+DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts)
+{
+    assert(numPts > 1);
+    for (int i = 0; i < numPts-1; ++i)
+    {
+        *ptr++ = {pts[i], defCol};
+        *ptr++ = {pts[i+1], defCol};
+    }
+    return ptr;
+}
+
 LineSegment* addLineStrip(LineSegment* ptr, Vec2* pts, int numPts, float xScale = 1.0f)
 {
     assert(numPts > 1);
@@ -633,19 +644,42 @@ DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c)
     return ptr;
 }
 
-LineSegment* addButton(LineSegment* ptr, Vec2 p0, Vec2 p1, float t)
+constexpr float buttonHalfWidth = 1.4f;
+constexpr float buttonHeight = 0.6f;
+
+struct Button
+{
+    Vec2 p;
+    Vec2 n; // normal
+};
+
+Button* addButton(Button* ptr, Vec2 p0, Vec2 p1, float t)
 {
     Vec2 D{p1-p0};
     Vec2 c{ p0 + D*t };
     Vec2 d{normalize(D)};
     Vec2 dp = perp(d);
-    float hw = 1.4f;
-    float h = 0.6f;
-    Vec2 q0 = c - d*hw;
-    Vec2 q3 = c + d*hw;
-    Vec2 q1 = q0 + dp*h;
-    Vec2 q2 = q3 + dp*h;
-    Vec2 pts[4] = {q0,q1,q2,q3};
+    *ptr++ = {c, dp};
+    return ptr;
+}
+
+void getButtonPoints(Button b, Vec2 pts[4])
+{
+    Vec2 d = -perp(b.n);
+    Vec2 q0 = b.p - d * buttonHalfWidth;
+    Vec2 q3 = b.p + d * buttonHalfWidth;
+    Vec2 q1 = q0 + b.n * buttonHeight;
+    Vec2 q2 = q3 + b.n * buttonHeight;
+    pts[0] = q0;
+    pts[1] = q1;
+    pts[2] = q2;
+    pts[3] = q3;
+}
+
+DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b)
+{
+    Vec2 pts[4];
+    getButtonPoints(b, pts);
     ptr = addLineStrip(ptr, pts, 4);
     return ptr;
 }
@@ -1138,6 +1172,10 @@ int main()
     Vec2 popBumpers[popBumpersCap];
     int numPopBumpers;
 
+    constexpr int buttonsCap = 16;
+    Button buttons[buttonsCap];
+    int numButtons;
+
     float plungerCenterX;
     float plungerTopY;
 
@@ -1147,6 +1185,7 @@ int main()
         LineSegment* oneWayWallsPtr = oneWayWalls;
         Vec2* capsulesPtr = capsules;
         Vec2* popBumpersPtr = popBumpers;
+        Button* buttonsPtr = buttons;
 
         const Vec2 p0{ -flipperX - 0.5f, flipperY + Flipper::r0 + 0.5f };
 
@@ -1273,11 +1312,11 @@ int main()
         Vec2 strip3[] = { p9,p10,p11,p12,p13,p14 };
         basicWallsPtr = addLineStrip(basicWallsPtr, strip3, ARRAY_LEN(strip3));
 
-        basicWallsPtr = addButton(basicWallsPtr, p9, p10, 0.5f);
-        basicWallsPtr = addButton(basicWallsPtr, p10, p11, 0.5f);
-        basicWallsPtr = addButton(basicWallsPtr, p11, p12, 0.3f);
-        basicWallsPtr = addButton(basicWallsPtr, p11, p12, 0.7f);
-        basicWallsPtr = addButton(basicWallsPtr, p12, p13, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, p9, p10, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, p10, p11, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, p11, p12, 0.3f);
+        buttonsPtr = addButton(buttonsPtr, p11, p12, 0.7f);
+        buttonsPtr = addButton(buttonsPtr, p12, p13, 0.5f);
 
         Ray r30{ p14, normalize(p14 - p13) };
         Vec2 p15 = findIntersection(r30, arc30);
@@ -1318,7 +1357,7 @@ int main()
         // left-top walled island
         Vec2 strip4[] = { a51s,p53,p54,a51e };
         basicWallsPtr = addLineStrip(basicWallsPtr, strip4, ARRAY_LEN(strip4));
-        basicWallsPtr = addButton(basicWallsPtr, p53, p54, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, p53, p54, 0.5f);
 
         Vec2 a52s = getArcStart(a52);
         Vec2 a52e = getArcEnd(a52);
@@ -1328,10 +1367,10 @@ int main()
         // left-middle walled island
         Vec2 strip5[] = { a52e,p60,p61,p62,a52s };
         basicWallsPtr = addLineStrip(basicWallsPtr, strip5, ARRAY_LEN(strip5));
-        basicWallsPtr = addButton(basicWallsPtr, p61, p60, 0.5f);
-        basicWallsPtr = addButton(basicWallsPtr, p62, p61, 0.5f);
-        basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.3f);
-        basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.7f);
+        buttonsPtr = addButton(buttonsPtr, p61, p60, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, p62, p61, 0.5f);
+        buttonsPtr = addButton(buttonsPtr, a52s, p62, 0.3f);
+        buttonsPtr = addButton(buttonsPtr, a52s, p62, 0.7f);
 
         float capsuleGap = 3.0f;
         float leftCapsuleX = 0.0f;
@@ -1352,6 +1391,7 @@ int main()
         numOneWayWalls = (int)(oneWayWallsPtr - oneWayWalls);
         numCapsules = (int)(capsulesPtr - capsules);
         numPopBumpers = (int)(popBumpersPtr - popBumpers);
+        numButtons = (int)(buttonsPtr - buttons);
 
         assert(numBasicWalls <= basicWallsCap);
         assert(numSlingshotWalls <= slingshotWallsCap);
@@ -1359,6 +1399,7 @@ int main()
         assert(numArcs <= arcsCap);
         assert(numCapsules <= capsulesCap);
         assert(numPopBumpers <= popBumpersCap);
+        assert(numButtons <= buttonsCap);
     }
 
 #undef ADD_ARC_MIRRORED
@@ -1430,6 +1471,11 @@ int main()
             for (int i = 0; i < numPopBumpers; ++i)
             {
                 ptr = addPopBumperLines(ptr, popBumpers[i]);
+            }
+
+            for (int i = 0; i < numButtons; ++i)
+            {
+                ptr = addButtonLines(ptr, buttons[i]);
             }
 
             numLineVerts = (int)(ptr - lineVerts);
@@ -1609,8 +1655,9 @@ int main()
                 }
             }
 
-            constexpr float popBumperBounciness = 6.0f;
-            constexpr float slingshotBounciness = 6.0f;
+            constexpr float popBumperBounciness = 5.0f;
+            constexpr float slingshotBounciness = 4.0f;
+            constexpr float buttonBounciness = 4.0f;
 
             // Check collisions of ball and slingshot walls
             for (int i = 0; i < numSlingshotWalls; ++i)
@@ -1701,6 +1748,29 @@ int main()
                     Vec2 relativeVelocity{ ball.v };
                     float relativeNormalVelocity{ dot(relativeVelocity, normal) };
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, popBumperBounciness);
+                }
+            }
+
+            // Check collisions of ball and buttons
+            for (int i = 0; i < numButtons; ++i)
+            {
+                Vec2 pts[4];
+                getButtonPoints(buttons[i], pts);
+                Vec2 p0 = pts[1];
+                Vec2 p1 = pts[2];
+                Vec2 L = p1 - p0;
+                float segmentLength = getLength(L);
+                Vec2 dir = L / segmentLength;
+                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
+                Vec2 closestPoint = p0 + t * dir;
+                float dist = getDistance(ball.p, closestPoint);
+                float penetration = ballRadius - dist;
+                if (penetration >= 0.0f)
+                {
+                    Vec2 normal = buttons[i].n;
+                    Vec2 relativeVelocity = ball.v; // line segment is stationary
+                    float relativeNormalVelocity = dot(relativeVelocity, normal);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity, buttonBounciness);
                 }
             }
         }
