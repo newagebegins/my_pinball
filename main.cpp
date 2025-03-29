@@ -155,6 +155,29 @@ Vec2 makeVec2(Vec3 v)
     return {v.x, v.y};
 }
 
+struct Mat2
+{
+    float m[2][2];
+};
+
+Mat2 makeRotationMat2(float angle)
+{
+    Mat2 m;
+    float c = cosf(angle);
+    float s = sinf(angle);
+    m.m[0][0] = c;  m.m[1][0] = -s;
+    m.m[0][1] = s;  m.m[1][1] = c;
+    return m;
+}
+
+Vec2 operator*(Mat2 m, Vec2 v)
+{
+    return {
+        m.m[0][0] * v.x + m.m[1][0] * v.y,
+        m.m[0][1] * v.x + m.m[1][1] * v.y,
+    };
+}
+
 struct Circle
 {
     Vec2 p;
@@ -941,12 +964,24 @@ Mat4 myOrtho(float l, float r, float b, float t, float n, float f)
     return m;
 }
 
+float getRandomFloat(float min, float max)
+{
+    return min + (max - min) * rand() / RAND_MAX;
+}
+
 void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float e = 0.5f)
 {
     if (relativeNormalVelocity <= 0.0f)
     {
         ball->p += normal * penetration;
-        ball->v += -(1.0f + e) * relativeNormalVelocity * normal;
+
+        // Add random offset to the normal
+        constexpr float delta = radians(5.0f);
+        float angle = getRandomFloat(-delta, delta);
+        Mat2 rotation = makeRotationMat2(angle);
+        Vec2 dir = rotation * normal;
+
+        ball->v += -(1.0f + e) * relativeNormalVelocity * dir;
     }
 }
 
