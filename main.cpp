@@ -1527,7 +1527,7 @@ int main()
 
             // Update ball
             {
-                constexpr Vec2 gravity = { 0.0f, -80.0f };
+                constexpr Vec2 gravity = { 0.0f, -60.0f };
                 ball.v += gravity * simDt;
 
                 const float maxSpeed{ ballRadius * simFps * 0.99f };
