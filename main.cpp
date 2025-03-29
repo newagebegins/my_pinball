@@ -976,11 +976,16 @@ float getRandomFloat(float min, float max)
     return min + (max - min) * rand() / RAND_MAX;
 }
 
-void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float e = 0.5f)
+void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float bounciness = 0.5f)
 {
     if (relativeNormalVelocity <= 0.0f)
     {
         ball->p += normal * penetration;
+
+        Vec2 tangent = perp(normal);
+
+        float initNormalSpeed = dot(ball->v, normal);
+        float initTangentSpeed = dot(ball->v, tangent);
 
         // Add random offset to the normal
         constexpr float delta = radians(5.0f);
@@ -988,7 +993,12 @@ void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relative
         Mat2 rotation = makeRotationMat2(angle);
         Vec2 dir = rotation * normal;
 
-        ball->v += -(1.0f + e) * relativeNormalVelocity * dir;
+        constexpr float friction = 0.99f;
+
+        float targetNormalSpeed = initNormalSpeed - (1.0f + bounciness) * relativeNormalVelocity;
+        float targetTangentSpeed = initTangentSpeed * friction;
+
+        ball->v = normal * targetNormalSpeed + tangent * targetTangentSpeed;
     }
 }
 
