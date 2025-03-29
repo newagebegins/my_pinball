@@ -1301,8 +1301,10 @@ int main()
 
     stuffToRender->plungerCenterX = plungerCenterX;
 
+    Vec2 initialBallPosition = { plungerCenterX, plungerTopY + 3.0f };
+
     Ball ball;
-    ball.p = {plungerCenterX, plungerTopY + 3.0f};
+    ball.p = initialBallPosition;
     ball.v = {};
 
     Flipper flippers[numFlippers];
@@ -1470,6 +1472,12 @@ int main()
                 }
 
                 ball.p += ball.v * simDt;
+
+                if (ball.p.y + ballRadius < 0.0f)
+                {
+                    ball.p = initialBallPosition;
+                    ball.v = {};
+                }
             }
 
             // Update flippers
