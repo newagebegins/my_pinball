@@ -600,8 +600,8 @@ Vec2 findIntersection(const Ray& r, const Arc& a)
     return r.p + r.d * t;
 }
 
-constexpr float capsuleHalfHeight = 1.0f;
-constexpr float capsuleRadius = 0.45f;
+constexpr float capsuleHalfHeight = 0.7f;
+constexpr float capsuleRadius = 0.3f;
 
 DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 {
@@ -1095,7 +1095,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
 
-    constexpr float flipperX{ 10.0f };
+    constexpr float flipperX{ 8.0f };
     constexpr float flipperY{ 7.0f };
 
     RenderData* renderData = &g_renderData;
@@ -1324,8 +1324,8 @@ int main()
         basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.3f);
         basicWallsPtr = addButton(basicWallsPtr, a52s, p62, 0.7f);
 
-        float capsuleGap = 4.3f;
-        float leftCapsuleX = -0.7f;
+        float capsuleGap = 3.0f;
+        float leftCapsuleX = -0.1f;
         float rightCapsuleX = leftCapsuleX + capsuleGap;
         float capsuleY = p53.y;
         *capsulesPtr++ = { leftCapsuleX, capsuleY };
