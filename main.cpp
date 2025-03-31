@@ -225,8 +225,23 @@ struct DefaultVertex
     Vec3 col;
 };
 
-constexpr int numFlippers = 2;
+struct LineSegment
+{
+    Vec2 p0;
+    Vec2 p1;
+};
 
+float getDistance(Vec2 v, LineSegment s)
+{
+    Vec2 L = s.p1 - s.p0;
+    float segmentLength = getLength(L);
+    Vec2 dir = L / segmentLength;
+    float t = clamp(dot(v - s.p0, dir), 0.0f, segmentLength);
+    Vec2 closestPoint = s.p0 + t * dir;
+    return getDistance(v, closestPoint);
+}
+
+constexpr int numFlippers = 2;
 constexpr int debugVertsCap = 64;
 
 struct RenderData
@@ -240,6 +255,9 @@ struct RenderData
     GLuint lineVao;
     int numLineVerts;
 
+    GLuint dynamicLinesVao;
+    GLuint dynamicLinesVbo;
+
     GLuint circleVao;
     GLuint flipperVao;
     GLuint plungerVao;
@@ -249,11 +267,15 @@ struct RenderData
 };
 
 constexpr int numCircles = 1;
+constexpr int dynamicLinesCap = 4;
 
 struct StuffToRender
 {
     Circle circles[numCircles];
     Mat3 flipperTransforms[numFlippers];
+
+    LineSegment dynamicLines[dynamicLinesCap];
+    int numDynamicLines;
 
     float plungerCenterX;
     float plungerScaleY;
@@ -339,12 +361,6 @@ struct Ball
 {
     Vec2 p;
     Vec2 v;
-};
-
-struct LineSegment
-{
-    Vec2 p0;
-    Vec2 p1;
 };
 
 struct Line
@@ -884,9 +900,27 @@ static void render(RenderData* rd, StuffToRender* s)
     }
 
     // Draw static lines
-    glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
-    glBindVertexArray(rd->lineVao);
-    glDrawArrays(GL_LINES, 0, rd->numLineVerts);
+    {
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glBindVertexArray(rd->lineVao);
+        glDrawArrays(GL_LINES, 0, rd->numLineVerts);
+    }
+
+    // Draw dynamic lines
+    {
+        DefaultVertex verts[dynamicLinesCap * 2];
+        for (int i = 0; i < s->numDynamicLines; ++i)
+        {
+            verts[i * 2] = { s->dynamicLines[i].p0, defCol };
+            verts[i * 2 + 1] = { s->dynamicLines[i].p1, defCol };
+        }
+        int numVerts = s->numDynamicLines * 2;
+        glBindVertexArray(rd->dynamicLinesVao);
+        glBindBuffer(GL_ARRAY_BUFFER, rd->dynamicLinesVbo);
+        glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_DYNAMIC_DRAW);
+        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glDrawArrays(GL_LINES, 0, numVerts);
+    }
 
     // Draw the plunger
     {
@@ -1089,6 +1123,12 @@ Collision checkIntersection(const Circle& circ, const Arc& arc)
     };
 }
 
+struct Ditch
+{
+    LineSegment segment;
+    bool isClosed;
+};
+
 int main()
 {
     srand((unsigned int)time(NULL));
@@ -1176,6 +1216,11 @@ int main()
     Button buttons[buttonsCap];
     int numButtons;
 
+    constexpr int ditchesCap = 2;
+    Ditch ditches[ditchesCap]{};
+    LineSegment ditchLids[ditchesCap];
+    int numDitches = 0;
+
     float plungerCenterX;
     float plungerTopY;
 
@@ -1211,7 +1256,7 @@ int main()
 
         Line worldB{ Line::horizontal(Constants::worldB) };
 
-        // ditch
+        // ditches
         Vec2 pp1 = findIntersection(l1, l2);
         Line ll1 = Line::horizontal(pp1.y - 3.0f);
         Vec2 pp2 = findIntersection(l1, ll1);
@@ -1232,8 +1277,16 @@ int main()
         *basicWallsPtr++ = {pp3r, p8};
 
         Vec2 p80 = findIntersection(l2, l3);
-        // ditch caps
-        basicWallsPtr = addLineSegmentMirrored(basicWallsPtr, pp1, p80);
+
+        // left ditch
+        ditches[numDitches].segment = { pp2, pp3 };
+        ditchLids[numDitches] = {pp1, p80};
+        numDitches++;
+
+        // right ditch
+        ditches[numDitches].segment = { reflect(pp2), reflect(pp3) };
+        ditchLids[numDitches] = {reflect(pp1), reflect(p80)};
+        numDitches++;
 
         // Construct slingshot
         {
@@ -1400,6 +1453,7 @@ int main()
         assert(numCapsules <= capsulesCap);
         assert(numPopBumpers <= popBumpersCap);
         assert(numButtons <= buttonsCap);
+        assert(numDitches <= ditchesCap);
     }
 
 #undef ADD_ARC_MIRRORED
@@ -1413,12 +1467,21 @@ int main()
     ball.p = initialBallPosition;
     ball.v = {};
 
+#if 0
+    // place ball above the ditch for testing
+    ball.p = (ditches[0].segment.p0 + ditches[0].segment.p1) / 2.0f + Vec2{ 0.0f, 5.0f };
+#endif
+
     Flipper flippers[numFlippers];
     flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
     flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
 
     float plungerT = 0.0f;
     constexpr float plungerDownSpeed = 1.0f;
+
+    constexpr float ditchCloseTimerMax = 0.5f;
+    float ditchCloseTimer = 0.0f;
+    int ditchIndexToClose = 0;
 
     // Initialize render data
     {
@@ -1498,6 +1561,8 @@ int main()
         renderData->plungerVao = createVao(plungerVerts, numPlungerVerts);
 
         renderData->debugVao = createVao(nullptr, debugVertsCap, &renderData->debugVbo);
+
+        renderData->dynamicLinesVao = createVao(nullptr, dynamicLinesCap * 2, &renderData->dynamicLinesVbo);
     }
 
     Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
@@ -1567,6 +1632,34 @@ int main()
                 ball.v.y += plungerImpulse * plungerT * getRandomFloat(0.8f, 1.2f);
             }
             plungerT = 0.0f;
+        }
+
+        if (ditchCloseTimer > 0.0f)
+        {
+            ditchCloseTimer -= frameDt;
+            if (ditchCloseTimer <= 0.0f)
+            {
+                // Close the ditch
+                basicWalls[numBasicWalls++] = ditchLids[ditchIndexToClose];
+                // Update dynamic lines
+                stuffToRender->dynamicLines[stuffToRender->numDynamicLines++] = ditchLids[ditchIndexToClose];
+            }
+        }
+
+        // Launch the ball out of the saving ditches
+        for (int i = 0; i < numDitches; ++i)
+        {
+            bool ballIsInTheDitch = getDistance(ball.p, ditches[i].segment) <= ballRadius;
+            if (ballIsInTheDitch && !ditches[i].isClosed)
+            {
+                ditches[i].isClosed = true;
+                ditchIndexToClose = i;
+                ditchCloseTimer = ditchCloseTimerMax;
+
+                // Launch the ball
+                constexpr float ditchImpulse = 300.0f;
+                ball.v.y += ditchImpulse * getRandomFloat(0.8f, 1.2f);
+            }
         }
 
         //
