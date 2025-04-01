@@ -1763,7 +1763,9 @@ int main()
     {
         Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
         glUseProgram(renderData->program);
-        glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &I3.m[0][0]);
+        Mat3 view = I3;
+        view.m[2][0] = -10.0f;
+        glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &view.m[0][0]);
         glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
         glUseProgram(0);
     }
@@ -2094,10 +2096,10 @@ int main()
         // Render test string
         {
             StuffToRender* s = stuffToRender;
-            char testString[] = "HELLO, WORLD!";
+            char testString[] = "SCORE: 123456";
             constexpr int numChars = ARRAY_LEN(testString) - 1;
             s->numChars = numChars;
-            Vec2 worldOffset{ 100.0f, 200.0f };
+            Vec2 worldOffset{ 550.0f, 750.0f };
             for (int i = 0; i < numChars; ++i)
             {
                 s->charInstances[i].worldOffset = worldOffset;
