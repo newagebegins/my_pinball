@@ -1759,12 +1759,16 @@ int main()
         renderData->dynamicLinesVao = createVao(nullptr, dynamicLinesCap * 2, &renderData->dynamicLinesVbo);
     }
 
-    Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
+    // Initialize uniforms for the main shader program
+    {
+        Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
+        glUseProgram(renderData->program);
+        glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
+        glUseProgram(0);
+    }
 
-    glUseProgram(renderData->program);
-    glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &I3.m[0][0]);
-    glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
-
+    // Initialize uniforms for the font shader program
     {
         auto& fs = renderData->fontShader;
         glUseProgram(fs.program);
@@ -1774,6 +1778,7 @@ int main()
         glUniform1i(fs.fontTextureLoc, 0);
         glUniform1i(fs.fontRowsLoc, fontRows);
         glUniform1i(fs.fontColsLoc, fontCols);
+        glUseProgram(0);
     }
 
     float accum = 0.0f;
