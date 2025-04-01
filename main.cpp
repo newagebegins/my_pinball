@@ -1,3 +1,5 @@
+#include <stb_image.h>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -244,8 +246,227 @@ float getDistance(Vec2 v, LineSegment s)
 constexpr int numFlippers = 2;
 constexpr int debugVertsCap = 64;
 
+unsigned int loadTexture(const char* filename)
+{
+    unsigned int texture{};
+
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        int format{};
+        switch (nrChannels)
+        {
+        case 1:
+            format = GL_RED;
+            break;
+        case 3:
+            format = GL_RGB;
+            break;
+        case 4:
+            format = GL_RGBA;
+            break;
+        default:
+            fprintf(stderr, "Unsupported number of channels: %d\n", nrChannels);
+            exit(1);
+            break;
+        }
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        fprintf(stderr, "Failed to load texture\n");
+        exit(1);
+    }
+    stbi_image_free(data);
+    return texture;
+}
+
+static GLuint createShaderProgram(const char* vCode, const char* fCode)
+{
+    GLchar infoLog[512];
+    GLint success;
+
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vs, 1, &vCode, nullptr);
+    glCompileShader(vs);
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
+        fprintf(stderr, "Vertex shader error:\n%s\n", infoLog);
+        exit(1);
+    }
+
+    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fs, 1, &fCode, nullptr);
+    glCompileShader(fs);
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
+        fprintf(stderr, "Fragment shader error:\n%s\n", infoLog);
+        exit(1);
+    }
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
+        fprintf(stderr, "Program link error:\n%s\n", infoLog);
+        exit(1);
+    }
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    return program;
+}
+
+struct FontShader
+{
+    GLuint program;
+    GLuint vao;
+    GLuint instanceVbo;
+    GLuint texture;
+
+    GLint projectionLoc;
+    GLint scaleLoc;
+    GLint fontTextureLoc;
+    GLint fontRowsLoc;
+    GLint fontColsLoc;
+};
+
+struct FontCharInstance
+{
+    Vec2 worldOffset;
+    Vec2 texOffset;
+};
+
+constexpr int numRectVerts = 6;
+constexpr int charInstanceCap = 128;
+
+FontShader createFontShader()
+{
+    static const char* const vCode = R"(
+#version 410
+
+layout (location = 0) in vec2 modelPos;
+layout (location = 1) in vec2 instanceWorldOffset;
+layout (location = 2) in vec2 instanceTexOffset;
+
+uniform mat4 projection;
+uniform float scale;
+
+out vec2 texCoords;
+out vec2 texOffset;
+
+void main()
+{
+    gl_Position = projection * vec4(modelPos * scale + instanceWorldOffset, 0.0, 1.0);
+    texCoords = modelPos;
+    texOffset = instanceTexOffset;
+}
+)";
+
+    static const char* const fCode = R"(
+#version 410
+
+in vec2 texCoords;
+in vec2 texOffset;
+
+uniform sampler2D fontTexture;
+uniform int fontRows;
+uniform int fontCols;
+
+out vec4 fragColor;
+
+void main()
+{
+    vec4 c = texture(fontTexture, vec2((texCoords.x + texOffset.x) / fontCols, (texCoords.y + texOffset.y) / fontRows));
+    if (c.a == 0.0) discard;
+    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+)";
+
+    FontShader fs;
+
+    fs.program = createShaderProgram(vCode, fCode);
+
+    fs.projectionLoc = glGetUniformLocation(fs.program, "projection");
+    fs.scaleLoc = glGetUniformLocation(fs.program, "scale");
+    fs.fontTextureLoc = glGetUniformLocation(fs.program, "fontTexture");
+    fs.fontRowsLoc = glGetUniformLocation(fs.program, "fontRows");
+    fs.fontColsLoc = glGetUniformLocation(fs.program, "fontCols");
+
+    assert(fs.projectionLoc >= 0);
+    assert(fs.scaleLoc >= 0);
+    assert(fs.fontTextureLoc >= 0);
+    assert(fs.fontRowsLoc >= 0);
+    assert(fs.fontColsLoc >= 0);
+
+    fs.texture = loadTexture("MyFont.png");
+
+    glGenVertexArrays(1, &fs.vao);
+    glBindVertexArray(fs.vao);
+
+    float rectVerts[numRectVerts*2]{
+        0.0f, 0.0f, // left-bottom
+        1.0f, 1.0f, // right-top
+        0.0f, 1.0f, // left-top
+
+        0.0f, 0.0f, // left-bottom
+        1.0f, 0.0f, // right-bottom
+        1.0f, 1.0f, // right-top
+    };
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof rectVerts, rectVerts, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+    glEnableVertexAttribArray(0);
+
+    glGenBuffers(1, &fs.instanceVbo);
+    glBindBuffer(GL_ARRAY_BUFFER, fs.instanceVbo);
+    glBufferData(GL_ARRAY_BUFFER, charInstanceCap * sizeof(FontCharInstance), nullptr, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glVertexAttribDivisor(1, 1);
+    glVertexAttribDivisor(2, 1);
+
+    return fs;
+}
+
+constexpr float letterSize = 16.0f;
+constexpr int fontRows = 16;
+constexpr int fontCols = 16;
+
+Vec2 getFontTextureOffset(char c)
+{
+    int k{ (c - ' ') };
+    int x{ k % fontCols };
+    int y{ fontRows - 1 - k / fontRows };
+    return { (float)x, (float)y };
+}
+
 struct RenderData
 {
+    FontShader fontShader;
+
     GLuint program;
 
     GLint modelLoc;
@@ -282,6 +503,9 @@ struct StuffToRender
 
     DefaultVertex debugVerts[debugVertsCap];
     int numDebugVerts;
+
+    FontCharInstance charInstances[charInstanceCap];
+    int numChars;
 };
 
 namespace Constants
@@ -732,51 +956,6 @@ void main()
 }
 )";
 
-static GLuint createShaderProgram(const char* vCode, const char* fCode)
-{
-    GLchar infoLog[512];
-    GLint success;
-
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vCode, nullptr);
-    glCompileShader(vs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vs, sizeof(infoLog), nullptr, infoLog);
-        fprintf(stderr, "Vertex shader error:\n%s\n", infoLog);
-        exit(1);
-    }
-
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fCode, nullptr);
-    glCompileShader(fs);
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fs, sizeof(infoLog), nullptr, infoLog);
-        fprintf(stderr, "Fragment shader error:\n%s\n", infoLog);
-        exit(1);
-    }
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
-        fprintf(stderr, "Program link error:\n%s\n", infoLog);
-        exit(1);
-    }
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    return program;
-}
-
 static GLuint createVao(DefaultVertex* verts, int numVerts, GLuint* vboOut = nullptr)
 {
     GLuint vao;
@@ -876,6 +1055,8 @@ static void render(RenderData* rd, StuffToRender* s)
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    glUseProgram(rd->program);
+
     // Draw moving circles
     for (int i = 0; i < numCircles; ++i)
     {
@@ -941,6 +1122,14 @@ static void render(RenderData* rd, StuffToRender* s)
         glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, s->numDebugVerts);
     }
+
+    // Draw the text
+    glUseProgram(rd->fontShader.program);
+    glBindVertexArray(rd->fontShader.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, rd->fontShader.instanceVbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, s->numChars * sizeof(s->charInstances[0]), s->charInstances);
+    glBindTexture(GL_TEXTURE_2D, rd->fontShader.texture);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, s->numChars);
 }
 
 void drawDebugLine(Vec2 p0, Vec2 p1)
@@ -1129,9 +1318,13 @@ struct Ditch
     bool isClosed;
 };
 
+constexpr int scrWidth = 800;
+constexpr int scrHeight = 800;
+
 int main()
 {
     srand((unsigned int)time(NULL));
+    stbi_set_flip_vertically_on_load(true);
 
     glfwSetErrorCallback(errorCallback);
 
@@ -1147,7 +1340,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
-    GLFWwindow* window{ glfwCreateWindow(800, 800, "my_pinball", nullptr, nullptr) };
+    GLFWwindow* window{ glfwCreateWindow(scrWidth, scrHeight, "my_pinball", nullptr, nullptr) };
     if (!window)
     {
         fprintf(stderr, "Failed to create GLFW window\n");
@@ -1485,6 +1678,7 @@ int main()
 
     // Initialize render data
     {
+        renderData->fontShader = createFontShader();
         renderData->program = createShaderProgram(vertexCode, fragmentCode);
 
         renderData->modelLoc = glGetUniformLocation(renderData->program, "model");
@@ -1570,6 +1764,17 @@ int main()
     glUseProgram(renderData->program);
     glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &I3.m[0][0]);
     glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
+
+    {
+        auto& fs = renderData->fontShader;
+        glUseProgram(fs.program);
+        Mat4 textProjection{ myOrtho(0.0f, (float)scrWidth, 0.0f, (float)scrHeight, -1.0f, 1.0f) };
+        glUniformMatrix4fv(fs.projectionLoc, 1, GL_FALSE, &textProjection.m[0][0]);
+        glUniform1f(fs.scaleLoc, letterSize);
+        glUniform1i(fs.fontTextureLoc, 0);
+        glUniform1i(fs.fontRowsLoc, fontRows);
+        glUniform1i(fs.fontColsLoc, fontCols);
+    }
 
     float accum = 0.0f;
     float prevTime{ (float)glfwGetTime() };
@@ -1880,6 +2085,21 @@ int main()
         }
 
         stuffToRender->plungerScaleY = plungerTopY * (1.0f - plungerT);
+
+        // Render test string
+        {
+            StuffToRender* s = stuffToRender;
+            char testString[] = "HELLO, WORLD!";
+            constexpr int numChars = ARRAY_LEN(testString) - 1;
+            s->numChars = numChars;
+            Vec2 worldOffset{ 100.0f, 200.0f };
+            for (int i = 0; i < numChars; ++i)
+            {
+                s->charInstances[i].worldOffset = worldOffset;
+                s->charInstances[i].texOffset = getFontTextureOffset(testString[i]);
+                worldOffset.x += letterSize;
+            }
+        }
 
         render(renderData, stuffToRender);
 

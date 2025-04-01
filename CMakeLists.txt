@@ -12,6 +12,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glfw)
 
 add_subdirectory(deps/glad)
+add_subdirectory(deps/stb_image)
 
 add_executable(my_pinball main.cpp)
 target_compile_features(my_pinball PRIVATE cxx_std_14)
@@ -19,4 +20,4 @@ target_compile_options(my_pinball PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror -pedantic-errors -Wall -Wextra -Wconversion -Wsign-conversion>
 )
-target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad)
+target_link_libraries(my_pinball PRIVATE OpenGL::GL glfw glad stb_image)
