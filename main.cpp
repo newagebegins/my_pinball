@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -1676,6 +1677,11 @@ int main()
     float ditchCloseTimer = 0.0f;
     int ditchIndexToClose = 0;
 
+    int score = 0;
+    constexpr int slingshotScore = 100;
+    constexpr int popBumperScore = 200;
+    constexpr int buttonScore = 50;
+
     // Initialize render data
     {
         renderData->fontShader = createFontShader();
@@ -1982,6 +1988,7 @@ int main()
                     Vec2 relativeVelocity = ball.v; // line segment is stationary
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, slingshotBounciness);
+                    score += slingshotScore;
                 }
             }
 
@@ -2053,6 +2060,7 @@ int main()
                     Vec2 relativeVelocity{ ball.v };
                     float relativeNormalVelocity{ dot(relativeVelocity, normal) };
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, popBumperBounciness);
+                    score += popBumperScore;
                 }
             }
 
@@ -2076,6 +2084,7 @@ int main()
                     Vec2 relativeVelocity = ball.v; // line segment is stationary
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, buttonBounciness);
+                    score += buttonScore;
                 }
             }
         }
@@ -2093,17 +2102,18 @@ int main()
 
         stuffToRender->plungerScaleY = plungerTopY * (1.0f - plungerT);
 
-        // Render test string
+        // Render text
         {
+            char scoreStr[16];
+            snprintf(scoreStr, sizeof scoreStr, "SCORE: %d", score);
             StuffToRender* s = stuffToRender;
-            char testString[] = "SCORE: 123456";
-            constexpr int numChars = ARRAY_LEN(testString) - 1;
+            int numChars = (int)strlen(scoreStr);
             s->numChars = numChars;
             Vec2 worldOffset{ 550.0f, 750.0f };
             for (int i = 0; i < numChars; ++i)
             {
                 s->charInstances[i].worldOffset = worldOffset;
-                s->charInstances[i].texOffset = getFontTextureOffset(testString[i]);
+                s->charInstances[i].texOffset = getFontTextureOffset(scoreStr[i]);
                 worldOffset.x += letterSize;
             }
         }
