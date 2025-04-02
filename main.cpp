@@ -1682,6 +1682,9 @@ int main()
     constexpr int popBumperScore = 200;
     constexpr int buttonScore = 50;
 
+    constexpr int initialLives = 3;
+    int lives = initialLives;
+
     // Initialize render data
     {
         renderData->fontShader = createFontShader();
@@ -1901,10 +1904,19 @@ int main()
 
                 ball.p += ball.v * simDt;
 
+                // If the ball has fallen off the table
                 if (ball.p.y + ballRadius < 0.0f)
                 {
-                    ball.p = initialBallPosition;
-                    ball.v = {};
+                    if (lives == 0)
+                    {
+                        // TODO: Game over
+                    }
+                    else
+                    {
+                        ball.p = initialBallPosition;
+                        ball.v = {};
+                        --lives;
+                    }
                 }
             }
 
@@ -2104,18 +2116,39 @@ int main()
 
         // Render text
         {
-            char scoreStr[16];
-            snprintf(scoreStr, sizeof scoreStr, "SCORE: %d", score);
             StuffToRender* s = stuffToRender;
-            int numChars = (int)strlen(scoreStr);
-            s->numChars = numChars;
-            Vec2 worldOffset{ 550.0f, 750.0f };
-            for (int i = 0; i < numChars; ++i)
+
+            int numChars = 0;
+
+            // Render score
             {
-                s->charInstances[i].worldOffset = worldOffset;
-                s->charInstances[i].texOffset = getFontTextureOffset(scoreStr[i]);
-                worldOffset.x += letterSize;
+                char scoreStr[13];
+                snprintf(scoreStr, sizeof scoreStr, "SCORE: %5d", score);
+                Vec2 worldOffset{ 550.0f, 750.0f };
+                for (int i = 0; i < ARRAY_LEN(scoreStr) - 1; ++i)
+                {
+                    s->charInstances[numChars].worldOffset = worldOffset;
+                    s->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
+                    ++numChars;
+                    worldOffset.x += letterSize;
+                }
             }
+
+            // Render lives
+            {
+                char livesStr[13];
+                snprintf(livesStr, sizeof livesStr, "LIVES: %5d", lives);
+                Vec2 worldOffset{ 550.0f, 650.0f };
+                for (int i = 0; i < ARRAY_LEN(livesStr) - 1; ++i)
+                {
+                    s->charInstances[numChars].worldOffset = worldOffset;
+                    s->charInstances[numChars].texOffset = getFontTextureOffset(livesStr[i]);
+                    ++numChars;
+                    worldOffset.x += letterSize;
+                }
+            }
+
+            s->numChars = numChars;
         }
 
         render(renderData, stuffToRender);
