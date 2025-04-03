@@ -336,9 +336,69 @@ static GLuint createShaderProgram(const char* vCode, const char* fCode)
     return program;
 }
 
+struct MainShader
+{
+    GLuint program;
+
+    GLint modelLoc;
+    GLint viewLoc;
+    GLint projectionLoc;
+};
+
+MainShader createMainShader()
+{
+    static const char* const vertexCode = R"(
+#version 410
+
+layout (location = 0) in vec2 inPos;
+layout (location = 1) in vec3 inCol;
+
+out vec3 col;
+
+uniform mat3 model;
+uniform mat3 view;
+uniform mat4 projection;
+
+void main()
+{
+    col = inCol;
+    gl_Position = projection * vec4(view * model * vec3(inPos, 1.0), 1.0);
+}
+)";
+
+    static const char* const fragmentCode = R"(
+#version 410
+
+in vec3 col;
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = vec4(col, 1.0);
+}
+)";
+
+    MainShader ms;
+
+    ms.program = createShaderProgram(vertexCode, fragmentCode);
+
+    ms.modelLoc = glGetUniformLocation(ms.program, "model");
+    ms.viewLoc = glGetUniformLocation(ms.program, "view");
+    ms.projectionLoc = glGetUniformLocation(ms.program, "projection");
+
+    assert(ms.modelLoc >= 0);
+    assert(ms.viewLoc >= 0);
+    assert(ms.projectionLoc >= 0);
+
+    return ms;
+}
+
 struct FontShader
 {
     GLuint program;
+
+    // TODO: Move out?
     GLuint vao;
     GLuint instanceVbo;
     GLuint texture;
@@ -466,13 +526,8 @@ Vec2 getFontTextureOffset(char c)
 
 struct RenderData
 {
+    MainShader mainShader;
     FontShader fontShader;
-
-    GLuint program;
-
-    GLint modelLoc;
-    GLint viewLoc;
-    GLint projectionLoc;
 
     GLuint lineVao;
     int numLineVerts;
@@ -925,38 +980,6 @@ DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b)
     return ptr;
 }
 
-static const char* const vertexCode = R"(
-#version 410
-
-layout (location = 0) in vec2 inPos;
-layout (location = 1) in vec3 inCol;
-
-out vec3 col;
-
-uniform mat3 model;
-uniform mat3 view;
-uniform mat4 projection;
-
-void main()
-{
-    col = inCol;
-    gl_Position = projection * vec4(view * model * vec3(inPos, 1.0), 1.0);
-}
-)";
-
-static const char* const fragmentCode = R"(
-#version 410
-
-in vec3 col;
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = vec4(col, 1.0);
-}
-)";
-
 static GLuint createVao(DefaultVertex* verts, int numVerts, GLuint* vboOut = nullptr)
 {
     GLuint vao;
@@ -1056,7 +1079,7 @@ static void render(RenderData* rd, StuffToRender* s)
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(rd->program);
+    glUseProgram(rd->mainShader.program);
 
     // Draw moving circles
     for (int i = 0; i < numCircles; ++i)
@@ -1067,7 +1090,7 @@ static void render(RenderData* rd, StuffToRender* s)
         m[0] = c.r;   m[3] = 0.0f;  m[6] = c.p.x;
         m[1] = 0.0f;  m[4] = c.r;   m[7] = c.p.y;
         m[2] = 0.0f;  m[5] = 0.0f;  m[8] = 1.0f;
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, m);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, m);
 
         glBindVertexArray(rd->circleVao);
         glDrawArrays(GL_LINE_LOOP, 0, numCircleVerts);
@@ -1076,14 +1099,14 @@ static void render(RenderData* rd, StuffToRender* s)
     // Draw flippers
     for (int i = 0; i < numFlippers; ++i)
     {
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &s->flipperTransforms[i].m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &s->flipperTransforms[i].m[0][0]);
         glBindVertexArray(rd->flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
     // Draw static lines
     {
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glBindVertexArray(rd->lineVao);
         glDrawArrays(GL_LINES, 0, rd->numLineVerts);
     }
@@ -1100,7 +1123,7 @@ static void render(RenderData* rd, StuffToRender* s)
         glBindVertexArray(rd->dynamicLinesVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->dynamicLinesVbo);
         glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_DYNAMIC_DRAW);
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, numVerts);
     }
 
@@ -1111,7 +1134,7 @@ static void render(RenderData* rd, StuffToRender* s)
         m[1] = 0.0f;  m[4] = s->plungerScaleY;  m[7] = 0.0f;
         m[2] = 0.0f;  m[5] = 0.0f;              m[8] = 1.0f;
         glBindVertexArray(rd->plungerVao);
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, m);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, m);
         glDrawArrays(GL_LINE_STRIP, 0, numPlungerVerts);
     }
 
@@ -1120,7 +1143,7 @@ static void render(RenderData* rd, StuffToRender* s)
         glBindVertexArray(rd->debugVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->debugVbo);
         glBufferData(GL_ARRAY_BUFFER, s->numDebugVerts * sizeof(s->debugVerts[0]), s->debugVerts, GL_DYNAMIC_DRAW);
-        glUniformMatrix3fv(rd->modelLoc, 1, GL_FALSE, &I3.m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, s->numDebugVerts);
     }
 
@@ -1681,16 +1704,8 @@ int main()
 
     // Initialize render data
     {
+        renderData->mainShader = createMainShader();
         renderData->fontShader = createFontShader();
-        renderData->program = createShaderProgram(vertexCode, fragmentCode);
-
-        renderData->modelLoc = glGetUniformLocation(renderData->program, "model");
-        renderData->viewLoc = glGetUniformLocation(renderData->program, "view");
-        renderData->projectionLoc = glGetUniformLocation(renderData->program, "projection");
-
-        assert(renderData->modelLoc >= 0);
-        assert(renderData->viewLoc >= 0);
-        assert(renderData->projectionLoc >= 0);
 
         constexpr int lineVertsCap = 900;
         DefaultVertex lineVerts[lineVertsCap];
@@ -1765,11 +1780,11 @@ int main()
     // Initialize uniforms for the main shader program
     {
         Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
-        glUseProgram(renderData->program);
+        glUseProgram(renderData->mainShader.program);
         Mat3 view = I3;
         view.m[2][0] = -10.0f;
-        glUniformMatrix3fv(renderData->viewLoc, 1, GL_FALSE, &view.m[0][0]);
-        glUniformMatrix4fv(renderData->projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
+        glUniformMatrix3fv(renderData->mainShader.viewLoc, 1, GL_FALSE, &view.m[0][0]);
+        glUniformMatrix4fv(renderData->mainShader.projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
         glUseProgram(0);
     }
 
