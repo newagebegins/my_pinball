@@ -398,11 +398,6 @@ struct FontShader
 {
     GLuint program;
 
-    // TODO: Move out?
-    GLuint vao;
-    GLuint instanceVbo;
-    GLuint texture;
-
     GLint projectionLoc;
     GLint scaleLoc;
     GLint fontTextureLoc;
@@ -478,37 +473,6 @@ void main()
     assert(fs.fontRowsLoc >= 0);
     assert(fs.fontColsLoc >= 0);
 
-    fs.texture = loadTexture("MyFont.png");
-
-    glGenVertexArrays(1, &fs.vao);
-    glBindVertexArray(fs.vao);
-
-    float rectVerts[numRectVerts*2]{
-        0.0f, 0.0f, // left-bottom
-        1.0f, 1.0f, // right-top
-        0.0f, 1.0f, // left-top
-
-        0.0f, 0.0f, // left-bottom
-        1.0f, 0.0f, // right-bottom
-        1.0f, 1.0f, // right-top
-    };
-    GLuint vbo;
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof rectVerts, rectVerts, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
-    glEnableVertexAttribArray(0);
-
-    glGenBuffers(1, &fs.instanceVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, fs.instanceVbo);
-    glBufferData(GL_ARRAY_BUFFER, charInstanceCap * sizeof(FontCharInstance), nullptr, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glVertexAttribDivisor(1, 1);
-    glVertexAttribDivisor(2, 1);
-
     return fs;
 }
 
@@ -541,6 +505,10 @@ struct RenderData
 
     GLuint debugVao;
     GLuint debugVbo;
+
+    GLuint fontVao;
+    GLuint fontInstanceVbo;
+    GLuint fontTexture;
 };
 
 constexpr int numCircles = 1;
@@ -1149,10 +1117,10 @@ static void render(RenderData* rd, StuffToRender* s)
 
     // Draw the text
     glUseProgram(rd->fontShader.program);
-    glBindVertexArray(rd->fontShader.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, rd->fontShader.instanceVbo);
+    glBindVertexArray(rd->fontVao);
+    glBindBuffer(GL_ARRAY_BUFFER, rd->fontInstanceVbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, s->numChars * sizeof(s->charInstances[0]), s->charInstances);
-    glBindTexture(GL_TEXTURE_2D, rd->fontShader.texture);
+    glBindTexture(GL_TEXTURE_2D, rd->fontTexture);
     glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, s->numChars);
 }
 
@@ -1775,6 +1743,42 @@ int main()
         renderData->debugVao = createVao(nullptr, debugVertsCap, &renderData->debugVbo);
 
         renderData->dynamicLinesVao = createVao(nullptr, dynamicLinesCap * 2, &renderData->dynamicLinesVbo);
+
+        //
+        // Font stuff
+        //
+        {
+            renderData->fontTexture = loadTexture("MyFont.png");
+
+            glGenVertexArrays(1, &renderData->fontVao);
+            glBindVertexArray(renderData->fontVao);
+
+            float rectVerts[numRectVerts * 2]{
+                0.0f, 0.0f, // left-bottom
+                1.0f, 1.0f, // right-top
+                0.0f, 1.0f, // left-top
+
+                0.0f, 0.0f, // left-bottom
+                1.0f, 0.0f, // right-bottom
+                1.0f, 1.0f, // right-top
+            };
+            GLuint vbo;
+            glGenBuffers(1, &vbo);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, sizeof rectVerts, rectVerts, GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+            glEnableVertexAttribArray(0);
+
+            glGenBuffers(1, &renderData->fontInstanceVbo);
+            glBindBuffer(GL_ARRAY_BUFFER, renderData->fontInstanceVbo);
+            glBufferData(GL_ARRAY_BUFFER, charInstanceCap * sizeof(FontCharInstance), nullptr, GL_DYNAMIC_DRAW);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+            glEnableVertexAttribArray(1);
+            glEnableVertexAttribArray(2);
+            glVertexAttribDivisor(1, 1);
+            glVertexAttribDivisor(2, 1);
+        }
     }
 
     // Initialize uniforms for the main shader program
