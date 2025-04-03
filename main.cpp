@@ -1313,12 +1313,6 @@ Collision checkIntersection(const Circle& circ, const Arc& arc)
     };
 }
 
-struct Ditch
-{
-    LineSegment segment;
-    bool isClosed;
-};
-
 constexpr int scrWidth = 800;
 constexpr int scrHeight = 800;
 
@@ -1411,7 +1405,7 @@ int main()
     int numButtons;
 
     constexpr int ditchesCap = 2;
-    Ditch ditches[ditchesCap]{};
+    LineSegment ditches[ditchesCap];
     LineSegment ditchLids[ditchesCap];
     int numDitches = 0;
 
@@ -1473,12 +1467,12 @@ int main()
         Vec2 p80 = findIntersection(l2, l3);
 
         // left ditch
-        ditches[numDitches].segment = { pp2, pp3 };
+        ditches[numDitches] = { pp2, pp3 };
         ditchLids[numDitches] = {pp1, p80};
         numDitches++;
 
         // right ditch
-        ditches[numDitches].segment = { reflect(pp2), reflect(pp3) };
+        ditches[numDitches] = { reflect(pp2), reflect(pp3) };
         ditchLids[numDitches] = {reflect(pp1), reflect(p80)};
         numDitches++;
 
@@ -1870,10 +1864,9 @@ int main()
         // Launch the ball out of the saving ditches
         for (int i = 0; i < numDitches; ++i)
         {
-            bool ballIsInTheDitch = getDistance(ball.p, ditches[i].segment) <= ballRadius;
-            if (ballIsInTheDitch && !ditches[i].isClosed)
+            bool ballIsInTheDitch = getDistance(ball.p, ditches[i]) <= ballRadius;
+            if (ballIsInTheDitch)
             {
-                ditches[i].isClosed = true;
                 ditchIndexToClose = i;
                 ditchCloseTimer = ditchCloseTimerMax;
 
@@ -1916,6 +1909,10 @@ int main()
                         ball.p = initialBallPosition;
                         ball.v = {};
                         --lives;
+
+                        // Reset ditches
+                        numBasicWalls -= stuffToRender->numDynamicLines;
+                        stuffToRender->numDynamicLines = 0;
                     }
                 }
             }
