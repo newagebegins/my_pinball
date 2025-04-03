@@ -488,6 +488,9 @@ Vec2 getFontTextureOffset(char c)
     return { (float)x, (float)y };
 }
 
+constexpr int numCircles = 1;
+constexpr int dynamicLinesCap = 4;
+
 struct RenderData
 {
     MainShader mainShader;
@@ -509,13 +512,7 @@ struct RenderData
     GLuint fontVao;
     GLuint fontInstanceVbo;
     GLuint fontTexture;
-};
 
-constexpr int numCircles = 1;
-constexpr int dynamicLinesCap = 4;
-
-struct StuffToRender
-{
     Circle circles[numCircles];
     Mat3 flipperTransforms[numFlippers];
 
@@ -1040,9 +1037,8 @@ static void makePlungerVerts(DefaultVertex* verts)
 }
 
 static RenderData g_renderData;
-static StuffToRender g_stuffToRender;
 
-static void render(RenderData* rd, StuffToRender* s)
+static void render(RenderData* rd)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -1052,7 +1048,7 @@ static void render(RenderData* rd, StuffToRender* s)
     // Draw moving circles
     for (int i = 0; i < numCircles; ++i)
     {
-        Circle c = s->circles[i];
+        Circle c = rd->circles[i];
 
         float m[9];
         m[0] = c.r;   m[3] = 0.0f;  m[6] = c.p.x;
@@ -1067,7 +1063,7 @@ static void render(RenderData* rd, StuffToRender* s)
     // Draw flippers
     for (int i = 0; i < numFlippers; ++i)
     {
-        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &s->flipperTransforms[i].m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &rd->flipperTransforms[i].m[0][0]);
         glBindVertexArray(rd->flipperVao);
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
@@ -1082,12 +1078,12 @@ static void render(RenderData* rd, StuffToRender* s)
     // Draw dynamic lines
     {
         DefaultVertex verts[dynamicLinesCap * 2];
-        for (int i = 0; i < s->numDynamicLines; ++i)
+        for (int i = 0; i < rd->numDynamicLines; ++i)
         {
-            verts[i * 2] = { s->dynamicLines[i].p0, defCol };
-            verts[i * 2 + 1] = { s->dynamicLines[i].p1, defCol };
+            verts[i * 2] = { rd->dynamicLines[i].p0, defCol };
+            verts[i * 2 + 1] = { rd->dynamicLines[i].p1, defCol };
         }
-        int numVerts = s->numDynamicLines * 2;
+        int numVerts = rd->numDynamicLines * 2;
         glBindVertexArray(rd->dynamicLinesVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->dynamicLinesVbo);
         glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_DYNAMIC_DRAW);
@@ -1098,8 +1094,8 @@ static void render(RenderData* rd, StuffToRender* s)
     // Draw the plunger
     {
         float m[9];
-        m[0] = 1.0f;  m[3] = 0.0f;              m[6] = s->plungerCenterX;
-        m[1] = 0.0f;  m[4] = s->plungerScaleY;  m[7] = 0.0f;
+        m[0] = 1.0f;  m[3] = 0.0f;              m[6] = rd->plungerCenterX;
+        m[1] = 0.0f;  m[4] = rd->plungerScaleY;  m[7] = 0.0f;
         m[2] = 0.0f;  m[5] = 0.0f;              m[8] = 1.0f;
         glBindVertexArray(rd->plungerVao);
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, m);
@@ -1110,26 +1106,26 @@ static void render(RenderData* rd, StuffToRender* s)
     {
         glBindVertexArray(rd->debugVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->debugVbo);
-        glBufferData(GL_ARRAY_BUFFER, s->numDebugVerts * sizeof(s->debugVerts[0]), s->debugVerts, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, rd->numDebugVerts * sizeof(rd->debugVerts[0]), rd->debugVerts, GL_DYNAMIC_DRAW);
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
-        glDrawArrays(GL_LINES, 0, s->numDebugVerts);
+        glDrawArrays(GL_LINES, 0, rd->numDebugVerts);
     }
 
     // Draw the text
     glUseProgram(rd->fontShader.program);
     glBindVertexArray(rd->fontVao);
     glBindBuffer(GL_ARRAY_BUFFER, rd->fontInstanceVbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, s->numChars * sizeof(s->charInstances[0]), s->charInstances);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, rd->numChars * sizeof(rd->charInstances[0]), rd->charInstances);
     glBindTexture(GL_TEXTURE_2D, rd->fontTexture);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, s->numChars);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, rd->numChars);
 }
 
 void drawDebugLine(Vec2 p0, Vec2 p1)
 {
-    auto& s = g_stuffToRender;
-    assert(s.numDebugVerts+1 < debugVertsCap);
-    s.debugVerts[s.numDebugVerts++] = { p0, highlightCol };
-    s.debugVerts[s.numDebugVerts++] = { p1, highlightCol };
+    auto& rd = g_renderData;
+    assert(rd.numDebugVerts+1 < debugVertsCap);
+    rd.debugVerts[rd.numDebugVerts++] = { p0, highlightCol };
+    rd.debugVerts[rd.numDebugVerts++] = { p1, highlightCol };
 }
 
 static void APIENTRY glDebugOutput(
@@ -1203,7 +1199,7 @@ static void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int heigh
 
 static void windowRefreshCallback(GLFWwindow* window)
 {
-    render(&g_renderData, &g_stuffToRender);
+    render(&g_renderData);
     glfwSwapBuffers(window);
 }
 
@@ -1355,7 +1351,6 @@ int main()
     constexpr float flipperY{ 7.0f };
 
     RenderData* renderData = &g_renderData;
-    StuffToRender* stuffToRender = &g_stuffToRender;
 
     constexpr int basicWallsCap = 70;
     LineSegment basicWalls[basicWallsCap];
@@ -1638,7 +1633,7 @@ int main()
 #undef ADD_ARC_MIRRORED
 #undef ADD_ARC
 
-    stuffToRender->plungerCenterX = plungerCenterX;
+    renderData->plungerCenterX = plungerCenterX;
 
     Vec2 initialBallPosition = { plungerCenterX, plungerTopY + 3.0f };
 
@@ -1819,7 +1814,7 @@ int main()
         prevTime = currentTime;
         accum += frameDt;
 
-        stuffToRender->numDebugVerts = 0;
+        renderData->numDebugVerts = 0;
 
         //
         // Handle input
@@ -1876,7 +1871,7 @@ int main()
                 // Close the ditch
                 basicWalls[numBasicWalls++] = ditchLids[ditchIndexToClose];
                 // Update dynamic lines
-                stuffToRender->dynamicLines[stuffToRender->numDynamicLines++] = ditchLids[ditchIndexToClose];
+                renderData->dynamicLines[renderData->numDynamicLines++] = ditchLids[ditchIndexToClose];
             }
         }
 
@@ -1930,8 +1925,8 @@ int main()
                         --lives;
 
                         // Reset ditches
-                        numBasicWalls -= stuffToRender->numDynamicLines;
-                        stuffToRender->numDynamicLines = 0;
+                        numBasicWalls -= renderData->numDynamicLines;
+                        renderData->numDynamicLines = 0;
                     }
                 }
             }
@@ -2121,19 +2116,17 @@ int main()
         // Render the frame
         //
 
-        stuffToRender->circles[0] = {ball.p, ballRadius};
+        renderData->circles[0] = {ball.p, ballRadius};
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            stuffToRender->flipperTransforms[i] = flippers[i].transform;
+            renderData->flipperTransforms[i] = flippers[i].transform;
         }
 
-        stuffToRender->plungerScaleY = plungerTopY * (1.0f - plungerT);
+        renderData->plungerScaleY = plungerTopY * (1.0f - plungerT);
 
         // Render text
         {
-            StuffToRender* s = stuffToRender;
-
             int numChars = 0;
 
             // Render score
@@ -2143,8 +2136,8 @@ int main()
                 Vec2 worldOffset{ 550.0f, 750.0f };
                 for (int i = 0; i < ARRAY_LEN(scoreStr) - 1; ++i)
                 {
-                    s->charInstances[numChars].worldOffset = worldOffset;
-                    s->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
+                    renderData->charInstances[numChars].worldOffset = worldOffset;
+                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
                     ++numChars;
                     worldOffset.x += letterSize;
                 }
@@ -2157,17 +2150,17 @@ int main()
                 Vec2 worldOffset{ 550.0f, 650.0f };
                 for (int i = 0; i < ARRAY_LEN(livesStr) - 1; ++i)
                 {
-                    s->charInstances[numChars].worldOffset = worldOffset;
-                    s->charInstances[numChars].texOffset = getFontTextureOffset(livesStr[i]);
+                    renderData->charInstances[numChars].worldOffset = worldOffset;
+                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(livesStr[i]);
                     ++numChars;
                     worldOffset.x += letterSize;
                 }
             }
 
-            s->numChars = numChars;
+            renderData->numChars = numChars;
         }
 
-        render(renderData, stuffToRender);
+        render(renderData);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
