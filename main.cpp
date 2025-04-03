@@ -489,7 +489,7 @@ Vec2 getFontTextureOffset(char c)
 }
 
 constexpr int numCircles = 1;
-constexpr int dynamicLinesCap = 4;
+constexpr int ditchLidsCap = 2;
 
 struct RenderData
 {
@@ -499,8 +499,8 @@ struct RenderData
     GLuint lineVao;
     int numLineVerts;
 
-    GLuint dynamicLinesVao;
-    GLuint dynamicLinesVbo;
+    GLuint ditchLidsVao;
+    GLuint ditchLidsVbo;
 
     GLuint circleVao;
     GLuint flipperVao;
@@ -516,8 +516,8 @@ struct RenderData
     Circle circles[numCircles];
     Mat3 flipperTransforms[numFlippers];
 
-    LineSegment dynamicLines[dynamicLinesCap];
-    int numDynamicLines;
+    LineSegment ditchLids[ditchLidsCap];
+    int numDitchLids;
 
     float plungerCenterX;
     float plungerScaleY;
@@ -1075,17 +1075,17 @@ static void render(RenderData* rd)
         glDrawArrays(GL_LINES, 0, rd->numLineVerts);
     }
 
-    // Draw dynamic lines
+    // Draw ditch lids
     {
-        DefaultVertex verts[dynamicLinesCap * 2];
-        for (int i = 0; i < rd->numDynamicLines; ++i)
+        DefaultVertex verts[ditchLidsCap * 2];
+        for (int i = 0; i < rd->numDitchLids; ++i)
         {
-            verts[i * 2] = { rd->dynamicLines[i].p0, defCol };
-            verts[i * 2 + 1] = { rd->dynamicLines[i].p1, defCol };
+            verts[i * 2] = { rd->ditchLids[i].p0, defCol };
+            verts[i * 2 + 1] = { rd->ditchLids[i].p1, defCol };
         }
-        int numVerts = rd->numDynamicLines * 2;
-        glBindVertexArray(rd->dynamicLinesVao);
-        glBindBuffer(GL_ARRAY_BUFFER, rd->dynamicLinesVbo);
+        int numVerts = rd->numDitchLids * 2;
+        glBindVertexArray(rd->ditchLidsVao);
+        glBindBuffer(GL_ARRAY_BUFFER, rd->ditchLidsVbo);
         glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_DYNAMIC_DRAW);
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, numVerts);
@@ -1737,7 +1737,7 @@ int main()
 
         renderData->debugVao = createVao(nullptr, debugVertsCap, &renderData->debugVbo);
 
-        renderData->dynamicLinesVao = createVao(nullptr, dynamicLinesCap * 2, &renderData->dynamicLinesVbo);
+        renderData->ditchLidsVao = createVao(nullptr, ditchLidsCap * 2, &renderData->ditchLidsVbo);
 
         //
         // Font stuff
@@ -1870,8 +1870,7 @@ int main()
             {
                 // Close the ditch
                 basicWalls[numBasicWalls++] = ditchLids[ditchIndexToClose];
-                // Update dynamic lines
-                renderData->dynamicLines[renderData->numDynamicLines++] = ditchLids[ditchIndexToClose];
+                renderData->ditchLids[renderData->numDitchLids++] = ditchLids[ditchIndexToClose];
             }
         }
 
@@ -1925,8 +1924,8 @@ int main()
                         --lives;
 
                         // Reset ditches
-                        numBasicWalls -= renderData->numDynamicLines;
-                        renderData->numDynamicLines = 0;
+                        numBasicWalls -= renderData->numDitchLids;
+                        renderData->numDitchLids = 0;
                     }
                 }
             }
