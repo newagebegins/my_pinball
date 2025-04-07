@@ -1657,6 +1657,7 @@ int main()
     float ditchCloseTimer = 0.0f;
     int ditchIndexToClose = 0;
 
+    int highScore = 0;
     int score = 0;
     constexpr int slingshotScore = 100;
     constexpr int popBumperScore = 200;
@@ -2129,6 +2130,11 @@ int main()
             }
         }
 
+        if (score > highScore)
+        {
+            highScore = score;
+        }
+
         //
         // Render the frame
         //
@@ -2155,6 +2161,20 @@ int main()
                 {
                     renderData->charInstances[numChars].worldOffset = worldOffset;
                     renderData->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
+                    ++numChars;
+                    worldOffset.x += letterSize;
+                }
+            }
+
+            // Render high score
+            {
+                char str[13];
+                snprintf(str, sizeof str, "HIGH:  %5d", highScore);
+                Vec2 worldOffset{ 550.0f, 770.0f };
+                for (int i = 0; i < ARRAY_LEN(str) - 1; ++i)
+                {
+                    renderData->charInstances[numChars].worldOffset = worldOffset;
+                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(str[i]);
                     ++numChars;
                     worldOffset.x += letterSize;
                 }
