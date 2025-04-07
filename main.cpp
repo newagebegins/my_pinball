@@ -1665,6 +1665,8 @@ int main()
     constexpr int initialLives = 3;
     int lives = initialLives;
 
+    bool isGameOver{ false };
+
     // Initialize render data
     {
         renderData->mainShader = createMainShader();
@@ -1863,6 +1865,22 @@ int main()
             plungerT = 0.0f;
         }
 
+        if (isGameOver)
+        {
+            if ((glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+            {
+                isGameOver = false;
+                // Reset the game
+                lives = initialLives;
+                score = 0;
+                ball.p = initialBallPosition;
+                ball.v = {};
+                // Reset ditches
+                numBasicWalls -= renderData->numDitchLids;
+                renderData->numDitchLids = 0;
+            }
+        }
+
         if (ditchCloseTimer > 0.0f)
         {
             ditchCloseTimer -= frameDt;
@@ -1915,7 +1933,7 @@ int main()
                 {
                     if (lives == 0)
                     {
-                        // TODO: Game over
+                        isGameOver = true;
                     }
                     else
                     {
@@ -2151,6 +2169,21 @@ int main()
                 {
                     renderData->charInstances[numChars].worldOffset = worldOffset;
                     renderData->charInstances[numChars].texOffset = getFontTextureOffset(livesStr[i]);
+                    ++numChars;
+                    worldOffset.x += letterSize;
+                }
+            }
+
+            // Render "Game Over" text
+            if (isGameOver)
+            {
+                const char* text{ "GAME OVER" };
+                const int len{ static_cast<int>(strlen(text)) };
+                Vec2 worldOffset{ 600.0f, 530.0f };
+                for (int i = 0; i < len; ++i)
+                {
+                    renderData->charInstances[numChars].worldOffset = worldOffset;
+                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(text[i]);
                     ++numChars;
                     worldOffset.x += letterSize;
                 }
