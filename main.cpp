@@ -1393,7 +1393,9 @@ int main()
     constexpr int ditchesCap = 2;
     LineSegment ditches[ditchesCap];
     LineSegment ditchLids[ditchesCap];
+    LineSegment closedDitchLids[ditchesCap];
     int numDitches = 0;
+    int numClosedDitchLids = 0;
 
     float plungerCenterX;
     float plungerTopY;
@@ -1642,8 +1644,12 @@ int main()
     ball.v = {};
 
 #if 0
-    // place ball above the ditch for testing
-    ball.p = (ditches[0].segment.p0 + ditches[0].segment.p1) / 2.0f + Vec2{ 0.0f, 5.0f };
+    // place ball above the left ditch for testing
+    ball.p = (ditches[0].p0 + ditches[0].p1) / 2.0f + Vec2{ 0.0f, 5.0f };
+#endif
+#if 0
+    // place ball above the right ditch for testing
+    ball.p = (ditches[1].p0 + ditches[1].p1) / 2.0f + Vec2{ 0.0f, 5.0f };
 #endif
 
     Flipper flippers[numFlippers];
@@ -1874,11 +1880,11 @@ int main()
                 // Reset the game
                 lives = initialLives;
                 score = 0;
+                // Reset ball
                 ball.p = initialBallPosition;
                 ball.v = {};
                 // Reset ditches
-                numBasicWalls -= renderData->numDitchLids;
-                renderData->numDitchLids = 0;
+                numClosedDitchLids = 0;
             }
         }
 
@@ -1888,8 +1894,7 @@ int main()
             if (ditchCloseTimer <= 0.0f)
             {
                 // Close the ditch
-                basicWalls[numBasicWalls++] = ditchLids[ditchIndexToClose];
-                renderData->ditchLids[renderData->numDitchLids++] = ditchLids[ditchIndexToClose];
+                closedDitchLids[numClosedDitchLids++] = ditchLids[ditchIndexToClose];
             }
         }
 
@@ -1938,13 +1943,14 @@ int main()
                     }
                     else
                     {
+                        // Reset ball
                         ball.p = initialBallPosition;
                         ball.v = {};
+
                         --lives;
 
                         // Reset ditches
-                        numBasicWalls -= renderData->numDitchLids;
-                        renderData->numDitchLids = 0;
+                        numClosedDitchLids = 0;
                     }
                 }
             }
@@ -1991,6 +1997,27 @@ int main()
             {
                 Vec2 p0 = basicWalls[i].p0;
                 Vec2 p1 = basicWalls[i].p1;
+                Vec2 L = p1 - p0;
+                float segmentLength = getLength(L);
+                Vec2 dir = L / segmentLength;
+                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
+                Vec2 closestPoint = p0 + t * dir;
+                float dist = getDistance(ball.p, closestPoint);
+                float penetration = ballRadius - dist;
+                if (penetration >= 0.0f)
+                {
+                    Vec2 normal = normalize(ball.p - closestPoint);
+                    Vec2 relativeVelocity = ball.v; // line segment is stationary
+                    float relativeNormalVelocity = dot(relativeVelocity, normal);
+                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
+                }
+            }
+
+            // Check collisions of ball and ditch lids
+            for (int i = 0; i < numClosedDitchLids; ++i)
+            {
+                Vec2 p0 = closedDitchLids[i].p0;
+                Vec2 p1 = closedDitchLids[i].p1;
                 Vec2 L = p1 - p0;
                 float segmentLength = getLength(L);
                 Vec2 dir = L / segmentLength;
@@ -2147,6 +2174,12 @@ int main()
         }
 
         renderData->plungerScaleY = plungerTopY * (1.0f - plungerT);
+
+        for (int i = 0; i < numClosedDitchLids; ++i)
+        {
+            renderData->ditchLids[i] = closedDitchLids[i];
+        }
+        renderData->numDitchLids = numClosedDitchLids;
 
         // Render text
         {
