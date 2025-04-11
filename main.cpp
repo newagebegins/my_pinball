@@ -1838,12 +1838,27 @@ int main()
         // Handle input
         //
 
+        bool isLeftButtonDown = false;
+        bool isRightButtonDown = false;
+
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
             glfwSetWindowShouldClose(window, true);
         }
 
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS ||
+            glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        {
+            isLeftButtonDown = true;
+        }
+
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS ||
+            glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        {
+            isRightButtonDown = true;
+        }
+
+        if (isLeftButtonDown)
         {
             flippers[0].angularVelocity = maxAngularVelocity;
         }
@@ -1852,7 +1867,7 @@ int main()
             flippers[0].angularVelocity = -maxAngularVelocity;
         }
 
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+        if (isRightButtonDown)
         {
             flippers[1].angularVelocity = -maxAngularVelocity;
         }
@@ -1883,7 +1898,7 @@ int main()
 
         if (isGameOver)
         {
-            if ((glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+            if (isLeftButtonDown || isRightButtonDown)
             {
                 isGameOver = false;
                 // Reset the game
