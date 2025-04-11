@@ -245,7 +245,7 @@ float getDistance(Vec2 v, LineSegment s)
 }
 
 constexpr int numFlippers = 2;
-constexpr int debugVertsCap = 64;
+constexpr int debugVertsCap = 128;
 
 unsigned int loadTexture(const char* filename)
 {
@@ -719,10 +719,9 @@ LineSegment* addLineStripMirrored(LineSegment* ptr, Vec2* pts, int numPts)
     return ptr;
 }
 
-DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r)
+DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r, Vec3 color = defCol)
 {
     constexpr int numVerts{ 32 };
-    Vec3 color{ 1.0f, 1.0f, 1.0f };
 
     DefaultVertex v0{
         p + Vec2{ 1.0f, 0.0f } * r,
@@ -1300,6 +1299,13 @@ Collision checkIntersection(const Circle& circ, const Arc& arc)
     };
 }
 
+struct Ditch
+{
+    LineSegment floor;
+    LineSegment lid;
+    bool isClosed;
+};
+
 constexpr int scrWidth = 800;
 constexpr int scrHeight = 800;
 
@@ -1391,11 +1397,8 @@ int main()
     int numButtons;
 
     constexpr int ditchesCap = 2;
-    LineSegment ditches[ditchesCap];
-    LineSegment ditchLids[ditchesCap];
-    LineSegment closedDitchLids[ditchesCap];
+    Ditch ditches[ditchesCap] = {};
     int numDitches = 0;
-    int numClosedDitchLids = 0;
 
     float plungerCenterX;
     float plungerTopY;
@@ -1443,7 +1446,7 @@ int main()
         const Vec2 p6{ pp3.x, pp3.y + 20.0f };
 
         // Outer wall near the flipper
-        Vec2 strip2[] = { p3,p4,pp1,pp2,pp3 };
+        Vec2 strip2[] = { p3,p4,pp1,pp2 };
         basicWallsPtr = addLineStripMirrored(basicWallsPtr, strip2, ARRAY_LEN(strip2));
         *basicWallsPtr++ = {pp3, p6};
 
@@ -1455,13 +1458,13 @@ int main()
         Vec2 p80 = findIntersection(l2, l3);
 
         // left ditch
-        ditches[numDitches] = { pp2, pp3 };
-        ditchLids[numDitches] = {pp1, p80};
+        ditches[numDitches].floor = { pp2, pp3 };
+        ditches[numDitches].lid = { pp1, p80 };
         numDitches++;
 
         // right ditch
-        ditches[numDitches] = { reflect(pp2), reflect(pp3) };
-        ditchLids[numDitches] = {reflect(pp1), reflect(p80)};
+        ditches[numDitches].floor = { reflect(pp2), reflect(pp3) };
+        ditches[numDitches].lid = {reflect(pp1), reflect(p80)};
         numDitches++;
 
         // Construct slingshot
@@ -1699,6 +1702,12 @@ int main()
                 *ptr++ = { slingshotWalls[i].p1, defCol };
             }
 
+            for (int i = 0; i < numDitches; ++i)
+            {
+                *ptr++ = { ditches[i].floor.p0, defCol };
+                *ptr++ = { ditches[i].floor.p1, defCol };
+            }
+
             for (int i = 0; i < numOneWayWalls; ++i)
             {
                 *ptr++ = { oneWayWalls[i].p0, oneWayWallsColor };
@@ -1884,7 +1893,10 @@ int main()
                 ball.p = initialBallPosition;
                 ball.v = {};
                 // Reset ditches
-                numClosedDitchLids = 0;
+                for (int i = 0; i < numDitches; ++i)
+                {
+                    ditches[i].isClosed = false;
+                }
             }
         }
 
@@ -1894,14 +1906,14 @@ int main()
             if (ditchCloseTimer <= 0.0f)
             {
                 // Close the ditch
-                closedDitchLids[numClosedDitchLids++] = ditchLids[ditchIndexToClose];
+                ditches[ditchIndexToClose].isClosed = true;
             }
         }
 
         // Launch the ball out of the saving ditches
         for (int i = 0; i < numDitches; ++i)
         {
-            bool ballIsInTheDitch = getDistance(ball.p, ditches[i]) <= ballRadius;
+            bool ballIsInTheDitch = getDistance(ball.p, ditches[i].floor) <= (ballRadius * 1.1f);
             if (ballIsInTheDitch)
             {
                 ditchIndexToClose = i;
@@ -1913,6 +1925,8 @@ int main()
             }
         }
 
+        constexpr float ditchPullRadius = 2.5f;
+
         //
         // Fixed-step physics simulation
         //
@@ -1923,8 +1937,28 @@ int main()
 
             // Update ball
             {
-                constexpr Vec2 gravity = { 0.0f, -60.0f };
-                ball.v += gravity * simDt;
+                Vec2 ballTotalForce = {};
+
+#if 1
+                for (int i = 0; i < numDitches; ++i)
+                {
+                    Ditch* ditch = &ditches[i];
+                    Vec2 ditchFloorCenter = (ditch->floor.p0 + ditch->floor.p1) / 2.0f;
+                    if (!ditch->isClosed && (getDistance(ditchFloorCenter, ball.p) < ditchPullRadius))
+                    {
+                        constexpr float ditchPullForceLength = 200.0f;
+                        Vec2 ditchPullForce = normalize(ditchFloorCenter - ball.p) * ditchPullForceLength;
+                        ballTotalForce += ditchPullForce;
+                    }
+                }
+#endif
+
+                constexpr Vec2 gravityForce = { 0.0f, -60.0f };
+                ballTotalForce += gravityForce;
+
+                constexpr float ballMass = 1.0f;
+                Vec2 ballAcceleration = ballTotalForce / ballMass;
+                ball.v += ballAcceleration * simDt;
 
                 const float maxSpeed{ ballRadius * simFps * 0.99f };
                 if (getLength(ball.v) > maxSpeed)
@@ -1950,7 +1984,10 @@ int main()
                         --lives;
 
                         // Reset ditches
-                        numClosedDitchLids = 0;
+                        for (int i = 0; i < numDitches; ++i)
+                        {
+                            ditches[i].isClosed = false;
+                        }
                     }
                 }
             }
@@ -2013,24 +2050,54 @@ int main()
                 }
             }
 
-            // Check collisions of ball and ditch lids
-            for (int i = 0; i < numClosedDitchLids; ++i)
+            // Check collisions of ball and ditch floors
+            for (int i = 0; i < numDitches; ++i)
             {
-                Vec2 p0 = closedDitchLids[i].p0;
-                Vec2 p1 = closedDitchLids[i].p1;
-                Vec2 L = p1 - p0;
-                float segmentLength = getLength(L);
-                Vec2 dir = L / segmentLength;
-                float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
-                Vec2 closestPoint = p0 + t * dir;
-                float dist = getDistance(ball.p, closestPoint);
-                float penetration = ballRadius - dist;
-                if (penetration >= 0.0f)
+                Ditch* ditch = &ditches[i];
+                if (!ditch->isClosed)
                 {
-                    Vec2 normal = normalize(ball.p - closestPoint);
-                    Vec2 relativeVelocity = ball.v; // line segment is stationary
-                    float relativeNormalVelocity = dot(relativeVelocity, normal);
-                    resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
+                    Vec2 p0 = ditch->floor.p0;
+                    Vec2 p1 = ditch->floor.p1;
+                    Vec2 L = p1 - p0;
+                    float segmentLength = getLength(L);
+                    Vec2 dir = L / segmentLength;
+                    float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
+                    Vec2 closestPoint = p0 + t * dir;
+                    float dist = getDistance(ball.p, closestPoint);
+                    float penetration = ballRadius - dist;
+                    if (penetration >= 0.0f)
+                    {
+                        Vec2 normal = normalize(ball.p - closestPoint);
+                        Vec2 relativeVelocity = ball.v; // line segment is stationary
+                        float relativeNormalVelocity = dot(relativeVelocity, normal);
+                        // ball sticks to the ditch floor
+                        resolveCollision(&ball, normal, penetration, relativeNormalVelocity, 0.0f);
+                    }
+                }
+            }
+
+            // Check collisions of ball and ditch lids
+            for (int i = 0; i < numDitches; ++i)
+            {
+                Ditch* ditch = &ditches[i];
+                if (ditch->isClosed)
+                {
+                    Vec2 p0 = ditch->lid.p0;
+                    Vec2 p1 = ditch->lid.p1;
+                    Vec2 L = p1 - p0;
+                    float segmentLength = getLength(L);
+                    Vec2 dir = L / segmentLength;
+                    float t = clamp(dot(ball.p - p0, dir), 0.0f, segmentLength);
+                    Vec2 closestPoint = p0 + t * dir;
+                    float dist = getDistance(ball.p, closestPoint);
+                    float penetration = ballRadius - dist;
+                    if (penetration >= 0.0f)
+                    {
+                        Vec2 normal = normalize(ball.p - closestPoint);
+                        Vec2 relativeVelocity = ball.v; // line segment is stationary
+                        float relativeNormalVelocity = dot(relativeVelocity, normal);
+                        resolveCollision(&ball, normal, penetration, relativeNormalVelocity);
+                    }
                 }
             }
 
@@ -2175,11 +2242,15 @@ int main()
 
         renderData->plungerScaleY = plungerTopY * (1.0f - plungerT);
 
-        for (int i = 0; i < numClosedDitchLids; ++i)
+        renderData->numDitchLids = 0;
+        for (int i = 0; i < numDitches; ++i)
         {
-            renderData->ditchLids[i] = closedDitchLids[i];
+            Ditch* ditch = &ditches[i];
+            if (ditch->isClosed)
+            {
+                renderData->ditchLids[renderData->numDitchLids++] = ditch->lid;
+            }
         }
-        renderData->numDitchLids = numClosedDitchLids;
 
         // Render text
         {
@@ -2244,6 +2315,24 @@ int main()
 
             renderData->numChars = numChars;
         }
+
+#if 1
+        DefaultVertex* debugVertsPtr = renderData->debugVerts;
+
+        // Debug render ditch pull radii
+        for (int i = 0; i < numDitches; ++i)
+        {
+            Ditch* ditch = &ditches[i];
+            Vec2 ditchFloorCenter = (ditch->floor.p0 + ditch->floor.p1) / 2.0f;
+            if (!ditch->isClosed)
+            {
+                Vec3 color = (getDistance(ditchFloorCenter, ball.p) < ditchPullRadius) ? highlightCol : auxCol;
+                debugVertsPtr = addCircleLines(debugVertsPtr, ditchFloorCenter, ditchPullRadius, color);
+            }
+        }
+
+        renderData->numDebugVerts = debugVertsPtr - renderData->debugVerts;
+#endif
 
         render(renderData);
 
