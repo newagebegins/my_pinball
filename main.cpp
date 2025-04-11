@@ -2255,26 +2255,15 @@ int main()
         // Render text
         {
             int numChars = 0;
-
-            // Render score
-            {
-                char scoreStr[13];
-                snprintf(scoreStr, sizeof scoreStr, "SCORE: %5d", score);
-                Vec2 worldOffset{ 550.0f, 750.0f };
-                for (int i = 0; i < ARRAY_LEN(scoreStr) - 1; ++i)
-                {
-                    renderData->charInstances[numChars].worldOffset = worldOffset;
-                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
-                    ++numChars;
-                    worldOffset.x += letterSize;
-                }
-            }
+            float x = 580.0f;
+            float y = 740.0f;
+            float lineHeight = 20.0f;
 
             // Render high score
             {
                 char str[13];
                 snprintf(str, sizeof str, "HIGH:  %5d", highScore);
-                Vec2 worldOffset{ 550.0f, 770.0f };
+                Vec2 worldOffset{ x, y };
                 for (int i = 0; i < ARRAY_LEN(str) - 1; ++i)
                 {
                     renderData->charInstances[numChars].worldOffset = worldOffset;
@@ -2284,11 +2273,29 @@ int main()
                 }
             }
 
+            y -= lineHeight;
+
+            // Render score
+            {
+                char scoreStr[13];
+                snprintf(scoreStr, sizeof scoreStr, "SCORE: %5d", score);
+                Vec2 worldOffset{ x, y };
+                for (int i = 0; i < ARRAY_LEN(scoreStr) - 1; ++i)
+                {
+                    renderData->charInstances[numChars].worldOffset = worldOffset;
+                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
+                    ++numChars;
+                    worldOffset.x += letterSize;
+                }
+            }
+
+            y -= lineHeight;
+
             // Render lives
             {
                 char livesStr[13];
                 snprintf(livesStr, sizeof livesStr, "LIVES: %5d", lives);
-                Vec2 worldOffset{ 550.0f, 650.0f };
+                Vec2 worldOffset{ x, y };
                 for (int i = 0; i < ARRAY_LEN(livesStr) - 1; ++i)
                 {
                     renderData->charInstances[numChars].worldOffset = worldOffset;
@@ -2303,7 +2310,7 @@ int main()
             {
                 const char* text{ "GAME OVER" };
                 const int len{ static_cast<int>(strlen(text)) };
-                Vec2 worldOffset{ 600.0f, 530.0f };
+                Vec2 worldOffset{ 610.0f, 530.0f };
                 for (int i = 0; i < len; ++i)
                 {
                     renderData->charInstances[numChars].worldOffset = worldOffset;
@@ -2316,7 +2323,7 @@ int main()
             renderData->numChars = numChars;
         }
 
-#if 1
+#if 0
         DefaultVertex* debugVertsPtr = renderData->debugVerts;
 
         // Debug render ditch pull radii
