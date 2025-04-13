@@ -30,6 +30,18 @@ struct Vec2
     float y;
 };
 
+struct Vec3
+{
+    float x;
+    float y;
+    float z;
+};
+
+struct Mat3
+{
+    float m[3][3];
+};
+
 Vec2 operator*(Vec2 v, float s)
 {
     return {s*v.x, s*v.y};
@@ -92,11 +104,6 @@ float perpDot(Vec2 a, Vec2 b)
     return dot(perp(a), b);
 }
 
-float lerp(float x, float y, float t)
-{
-    return (1.0f - t)*x + t*y;
-}
-
 float clamp(float x, float xMin, float xMax)
 {
     float res;
@@ -120,18 +127,6 @@ float getDistance(Vec2 a, Vec2 b)
     return getLength(a - b);
 }
 
-struct Vec3
-{
-    float x;
-    float y;
-    float z;
-};
-
-struct Mat3
-{
-    float m[3][3];
-};
-
 constexpr Mat3 makeI3()
 {
     Mat3 m{};
@@ -142,6 +137,21 @@ constexpr Mat3 makeI3()
 }
 
 constexpr Mat3 I3{ makeI3() };
+
+Vec3 operator+(Vec3 a, Vec3 b)
+{
+    return { a.x + b.x, a.y + b.y, a.z + b.z };
+}
+
+Vec3 operator*(float t, Vec3 v)
+{
+    return { v.x * t, v.y * t, v.z * t };
+}
+
+Vec3 operator*(Vec3 v, float t)
+{
+    return { v.x * t, v.y * t, v.z * t };
+}
 
 Vec3 operator*(const Mat3& m, Vec3 v)
 {
@@ -194,6 +204,16 @@ Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
 Vec2 reflect(Vec2 v)
 {
     return { -v.x, v.y };
+}
+
+float lerp(float x, float y, float t)
+{
+    return (1.0f - t) * x + t * y;
+}
+
+Vec3 lerp(Vec3 x, Vec3 y, float t)
+{
+    return (1.0f - t) * x + t * y;
 }
 
 float getAngle(Vec2 v)
@@ -488,6 +508,7 @@ Vec2 getFontTextureOffset(char c)
     return { (float)x, (float)y };
 }
 
+constexpr int lineVertsCap = 900;
 constexpr int numCircles = 1;
 constexpr int ditchLidsCap = 2;
 
@@ -497,7 +518,7 @@ struct RenderData
     FontShader fontShader;
 
     GLuint lineVao;
-    int numLineVerts;
+    GLuint lineVbo;
 
     GLuint ditchLidsVao;
     GLuint ditchLidsVbo;
@@ -512,6 +533,9 @@ struct RenderData
     GLuint fontVao;
     GLuint fontInstanceVbo;
     GLuint fontTexture;
+
+    DefaultVertex lineVerts[lineVertsCap];
+    int numLineVerts;
 
     Circle circles[numCircles];
     Mat3 flipperTransforms[numFlippers];
@@ -689,13 +713,13 @@ DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
     return ptr;
 }
 
-DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts)
+DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 color)
 {
     assert(numPts > 1);
     for (int i = 0; i < numPts-1; ++i)
     {
-        *ptr++ = {pts[i], defCol};
-        *ptr++ = {pts[i+1], defCol};
+        *ptr++ = {pts[i], color};
+        *ptr++ = {pts[i+1], color};
     }
     return ptr;
 }
@@ -894,13 +918,13 @@ DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 
 constexpr float popBumperRadius = 2.75f;
 
-DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c)
+DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c, Vec3 color)
 {
     float rb{popBumperRadius};
     float gap{0.45f};
     float rs{rb-gap};
-    ptr = addCircleLines(ptr, c, rb);
-    ptr = addCircleLines(ptr, c, rs);
+    ptr = addCircleLines(ptr, c, rb, color);
+    ptr = addCircleLines(ptr, c, rs, color);
     return ptr;
 }
 
@@ -936,11 +960,11 @@ void getButtonPoints(Button b, Vec2 pts[4])
     pts[3] = q3;
 }
 
-DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b)
+DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b, Vec3 color)
 {
     Vec2 pts[4];
     getButtonPoints(b, pts);
-    ptr = addLineStrip(ptr, pts, 4);
+    ptr = addLineStrip(ptr, pts, 4, color);
     return ptr;
 }
 
@@ -953,7 +977,7 @@ static GLuint createVao(DefaultVertex* verts, int numVerts, GLuint* vboOut = nul
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, vboOut ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(verts[0]), (void *)offsetof(DefaultVertex, pos));
@@ -1067,10 +1091,12 @@ static void render(RenderData* rd)
         glDrawArrays(GL_LINE_LOOP, 0, numFlipperVerts);
     }
 
-    // Draw static lines
+    // Draw lines
     {
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glBindVertexArray(rd->lineVao);
+        glBindBuffer(GL_ARRAY_BUFFER, rd->lineVbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, rd->numLineVerts * sizeof(rd->lineVerts[0]), rd->lineVerts);
         glDrawArrays(GL_LINES, 0, rd->numLineVerts);
     }
 
@@ -1085,7 +1111,7 @@ static void render(RenderData* rd)
         int numVerts = rd->numDitchLids * 2;
         glBindVertexArray(rd->ditchLidsVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->ditchLidsVbo);
-        glBufferData(GL_ARRAY_BUFFER, numVerts * sizeof(verts[0]), verts, GL_DYNAMIC_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, numVerts * sizeof(verts[0]), verts);
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, numVerts);
     }
@@ -1105,7 +1131,7 @@ static void render(RenderData* rd)
     {
         glBindVertexArray(rd->debugVao);
         glBindBuffer(GL_ARRAY_BUFFER, rd->debugVbo);
-        glBufferData(GL_ARRAY_BUFFER, rd->numDebugVerts * sizeof(rd->debugVerts[0]), rd->debugVerts, GL_DYNAMIC_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, rd->numDebugVerts * sizeof(rd->debugVerts[0]), rd->debugVerts);
         glUniformMatrix3fv(rd->mainShader.modelLoc, 1, GL_FALSE, &I3.m[0][0]);
         glDrawArrays(GL_LINES, 0, rd->numDebugVerts);
     }
@@ -1363,6 +1389,8 @@ int main()
 
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetWindowRefreshCallback(window, windowRefreshCallback);
+    
+    constexpr float highlightTimerMax = 1.0f;
 
     constexpr float flipperX{ 8.0f };
     constexpr float flipperY{ 7.0f };
@@ -1375,6 +1403,7 @@ int main()
 
     constexpr int slingshotWallsCap = 2;
     LineSegment slingshotWalls[slingshotWallsCap];
+    float slingshotWallHighlightTimers[slingshotWallsCap] = {};
     int numSlingshotWalls;
 
     constexpr int oneWayWallsCap = 2;
@@ -1401,10 +1430,12 @@ int main()
 
     constexpr int popBumpersCap = 3;
     Vec2 popBumpers[popBumpersCap];
+    float popBumperHighlightTimers[popBumpersCap] = {};
     int numPopBumpers;
 
     constexpr int buttonsCap = 16;
     Button buttons[buttonsCap];
+    float buttonHighlightTimers[buttonsCap] = {};
     int numButtons;
 
     constexpr int ditchesCap = 2;
@@ -1693,64 +1724,7 @@ int main()
         rd->mainShader = createMainShader();
         rd->fontShader = createFontShader();
 
-        constexpr int lineVertsCap = 900;
-        DefaultVertex lineVerts[lineVertsCap];
-        int numLineVerts;
-
-        // Fill lineVerts
-        {
-            DefaultVertex* ptr = lineVerts;
-
-            for (int i = 0; i < numBasicWalls; ++i)
-            {
-                *ptr++ = { basicWalls[i].p0, defCol };
-                *ptr++ = { basicWalls[i].p1, defCol };
-            }
-
-            for (int i = 0; i < numSlingshotWalls; ++i)
-            {
-                *ptr++ = { slingshotWalls[i].p0, defCol };
-                *ptr++ = { slingshotWalls[i].p1, defCol };
-            }
-
-            for (int i = 0; i < numDitches; ++i)
-            {
-                *ptr++ = { ditches[i].floor.p0, defCol };
-                *ptr++ = { ditches[i].floor.p1, defCol };
-            }
-
-            for (int i = 0; i < numOneWayWalls; ++i)
-            {
-                *ptr++ = { oneWayWalls[i].p0, oneWayWallsColor };
-                *ptr++ = { oneWayWalls[i].p1, oneWayWallsColor };
-            }
-
-            for (int i = 0; i < numArcs; ++i)
-            {
-                ptr = addArcLines(ptr, arcs[i], arcSteps[i]);
-            }
-
-            for (int i = 0; i < numCapsules; ++i)
-            {
-                ptr = addCapsuleLines(ptr, capsules[i]);
-            }
-
-            for (int i = 0; i < numPopBumpers; ++i)
-            {
-                ptr = addPopBumperLines(ptr, popBumpers[i]);
-            }
-
-            for (int i = 0; i < numButtons; ++i)
-            {
-                ptr = addButtonLines(ptr, buttons[i]);
-            }
-
-            numLineVerts = (int)(ptr - lineVerts);
-            assert(numLineVerts <= lineVertsCap);
-        }
-
-        rd->lineVao = createVao(lineVerts, numLineVerts);
-        rd->numLineVerts = numLineVerts;
+        rd->lineVao = createVao(nullptr, lineVertsCap, &rd->lineVbo);
 
         DefaultVertex circleVerts[numCircleVerts];
         makeCircleVerts(circleVerts);
@@ -1930,6 +1904,21 @@ int main()
                     ditches[i].isClosed = false;
                 }
             }
+        }
+
+        for (int i = 0; i < numPopBumpers; ++i)
+        {
+            popBumperHighlightTimers[i] -= frameDt;
+        }
+
+        for (int i = 0; i < numSlingshotWalls; ++i)
+        {
+            slingshotWallHighlightTimers[i] -= frameDt;
+        }
+
+        for (int i = 0; i < numButtons; ++i)
+        {
+            buttonHighlightTimers[i] -= frameDt;
         }
 
         if (ditchCloseTimer > 0.0f)
@@ -2156,6 +2145,7 @@ int main()
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, slingshotBounciness);
                     score += slingshotScore;
+                    slingshotWallHighlightTimers[i] = highlightTimerMax;
                 }
             }
 
@@ -2228,6 +2218,7 @@ int main()
                     float relativeNormalVelocity{ dot(relativeVelocity, normal) };
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, popBumperBounciness);
                     score += popBumperScore;
+                    popBumperHighlightTimers[i] = highlightTimerMax;
                 }
             }
 
@@ -2252,6 +2243,7 @@ int main()
                     float relativeNormalVelocity = dot(relativeVelocity, normal);
                     resolveCollision(&ball, normal, penetration, relativeNormalVelocity, buttonBounciness);
                     score += buttonScore;
+                    buttonHighlightTimers[i] = highlightTimerMax;
                 }
             }
         }
@@ -2264,6 +2256,61 @@ int main()
         //
         // Render the frame
         //
+
+        // Render lines
+        {
+            DefaultVertex* ptr = rd->lineVerts;
+
+            for (int i = 0; i < numBasicWalls; ++i)
+            {
+                *ptr++ = { basicWalls[i].p0, defCol };
+                *ptr++ = { basicWalls[i].p1, defCol };
+            }
+
+            for (int i = 0; i < numSlingshotWalls; ++i)
+            {
+                Vec3 color = lerp(defCol, highlightCol, slingshotWallHighlightTimers[i]);
+                *ptr++ = { slingshotWalls[i].p0, color };
+                *ptr++ = { slingshotWalls[i].p1, color };
+            }
+
+            for (int i = 0; i < numDitches; ++i)
+            {
+                *ptr++ = { ditches[i].floor.p0, defCol };
+                *ptr++ = { ditches[i].floor.p1, defCol };
+            }
+
+            for (int i = 0; i < numOneWayWalls; ++i)
+            {
+                *ptr++ = { oneWayWalls[i].p0, oneWayWallsColor };
+                *ptr++ = { oneWayWalls[i].p1, oneWayWallsColor };
+            }
+
+            for (int i = 0; i < numArcs; ++i)
+            {
+                ptr = addArcLines(ptr, arcs[i], arcSteps[i]);
+            }
+
+            for (int i = 0; i < numCapsules; ++i)
+            {
+                ptr = addCapsuleLines(ptr, capsules[i]);
+            }
+
+            for (int i = 0; i < numPopBumpers; ++i)
+            {
+                Vec3 color = lerp(defCol, highlightCol, popBumperHighlightTimers[i]);
+                ptr = addPopBumperLines(ptr, popBumpers[i], color);
+            }
+
+            for (int i = 0; i < numButtons; ++i)
+            {
+                Vec3 color = lerp(defCol, highlightCol, buttonHighlightTimers[i]);
+                ptr = addButtonLines(ptr, buttons[i], color);
+            }
+
+            rd->numLineVerts = (int)(ptr - rd->lineVerts);
+            assert(rd->numLineVerts <= lineVertsCap);
+        }
 
         rd->circles[0] = {ball.p, ballRadius};
 
