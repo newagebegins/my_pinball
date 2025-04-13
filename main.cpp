@@ -1306,6 +1306,17 @@ struct Ditch
     bool isClosed;
 };
 
+void drawString(RenderData* rd, char* str, int x, int y)
+{
+    size_t len = strlen(str);
+    Vec2 worldOffset = { (float)x, (float)y };
+    for (size_t i = 0; i < len; ++i)
+    {
+        rd->charInstances[rd->numChars++] = { worldOffset, getFontTextureOffset(str[i]) };
+        worldOffset.x += letterSize;
+    }
+}
+
 constexpr int scrWidth = 800;
 constexpr int scrHeight = 800;
 
@@ -1356,7 +1367,7 @@ int main()
     constexpr float flipperX{ 8.0f };
     constexpr float flipperY{ 7.0f };
 
-    RenderData* renderData = &g_renderData;
+    RenderData* rd = &g_renderData;
 
     constexpr int basicWallsCap = 70;
     LineSegment basicWalls[basicWallsCap];
@@ -1638,7 +1649,7 @@ int main()
 #undef ADD_ARC_MIRRORED
 #undef ADD_ARC
 
-    renderData->plungerCenterX = plungerCenterX;
+    rd->plungerCenterX = plungerCenterX;
 
     Vec2 initialBallPosition = { plungerCenterX, plungerTopY + 3.0f };
 
@@ -1679,8 +1690,8 @@ int main()
 
     // Initialize render data
     {
-        renderData->mainShader = createMainShader();
-        renderData->fontShader = createFontShader();
+        rd->mainShader = createMainShader();
+        rd->fontShader = createFontShader();
 
         constexpr int lineVertsCap = 900;
         DefaultVertex lineVerts[lineVertsCap];
@@ -1738,33 +1749,33 @@ int main()
             assert(numLineVerts <= lineVertsCap);
         }
 
-        renderData->lineVao = createVao(lineVerts, numLineVerts);
-        renderData->numLineVerts = numLineVerts;
+        rd->lineVao = createVao(lineVerts, numLineVerts);
+        rd->numLineVerts = numLineVerts;
 
         DefaultVertex circleVerts[numCircleVerts];
         makeCircleVerts(circleVerts);
-        renderData->circleVao = createVao(circleVerts, numCircleVerts);
+        rd->circleVao = createVao(circleVerts, numCircleVerts);
 
         DefaultVertex flipperVerts[numFlipperVerts];
         makeFlipperVerts(flipperVerts);
-        renderData->flipperVao = createVao(flipperVerts, numFlipperVerts);
+        rd->flipperVao = createVao(flipperVerts, numFlipperVerts);
 
         DefaultVertex plungerVerts[numPlungerVerts];
         makePlungerVerts(plungerVerts);
-        renderData->plungerVao = createVao(plungerVerts, numPlungerVerts);
+        rd->plungerVao = createVao(plungerVerts, numPlungerVerts);
 
-        renderData->debugVao = createVao(nullptr, debugVertsCap, &renderData->debugVbo);
+        rd->debugVao = createVao(nullptr, debugVertsCap, &rd->debugVbo);
 
-        renderData->ditchLidsVao = createVao(nullptr, ditchLidsCap * 2, &renderData->ditchLidsVbo);
+        rd->ditchLidsVao = createVao(nullptr, ditchLidsCap * 2, &rd->ditchLidsVbo);
 
         //
         // Font stuff
         //
         {
-            renderData->fontTexture = loadTexture("MyFont.png");
+            rd->fontTexture = loadTexture("MyFont.png");
 
-            glGenVertexArrays(1, &renderData->fontVao);
-            glBindVertexArray(renderData->fontVao);
+            glGenVertexArrays(1, &rd->fontVao);
+            glBindVertexArray(rd->fontVao);
 
             float rectVerts[numRectVerts * 2]{
                 0.0f, 0.0f, // left-bottom
@@ -1782,8 +1793,8 @@ int main()
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
             glEnableVertexAttribArray(0);
 
-            glGenBuffers(1, &renderData->fontInstanceVbo);
-            glBindBuffer(GL_ARRAY_BUFFER, renderData->fontInstanceVbo);
+            glGenBuffers(1, &rd->fontInstanceVbo);
+            glBindBuffer(GL_ARRAY_BUFFER, rd->fontInstanceVbo);
             glBufferData(GL_ARRAY_BUFFER, charInstanceCap * sizeof(FontCharInstance), nullptr, GL_DYNAMIC_DRAW);
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
             glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
@@ -1797,17 +1808,17 @@ int main()
     // Initialize uniforms for the main shader program
     {
         Mat4 projection{ myOrtho(Constants::worldL, Constants::worldR, Constants::worldB, Constants::worldT, -1.0f, 1.0f) };
-        glUseProgram(renderData->mainShader.program);
+        glUseProgram(rd->mainShader.program);
         Mat3 view = I3;
         view.m[2][0] = -10.0f;
-        glUniformMatrix3fv(renderData->mainShader.viewLoc, 1, GL_FALSE, &view.m[0][0]);
-        glUniformMatrix4fv(renderData->mainShader.projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
+        glUniformMatrix3fv(rd->mainShader.viewLoc, 1, GL_FALSE, &view.m[0][0]);
+        glUniformMatrix4fv(rd->mainShader.projectionLoc, 1, GL_FALSE, &projection.m[0][0]);
         glUseProgram(0);
     }
 
     // Initialize uniforms for the font shader program
     {
-        auto& fs = renderData->fontShader;
+        auto& fs = rd->fontShader;
         glUseProgram(fs.program);
         Mat4 textProjection{ myOrtho(0.0f, (float)scrWidth, 0.0f, (float)scrHeight, -1.0f, 1.0f) };
         glUniformMatrix4fv(fs.projectionLoc, 1, GL_FALSE, &textProjection.m[0][0]);
@@ -1820,19 +1831,25 @@ int main()
 
     float accum = 0.0f;
     float prevTime{ (float)glfwGetTime() };
+    
+    constexpr float statsTimerMax = 0.1f;
+    float statsTimer = 0.0f;
+    float frameDuraton = 0.0f;
 
     while (!glfwWindowShouldClose(window))
     {
         float currentTime{ (float)glfwGetTime() };
         float frameDt = currentTime - prevTime;
+        //printf("dt: %f, fps: %f\n", frameDt, 1.0f / frameDt);
         if (frameDt > maxDt)
         {
             frameDt = maxDt;
         }
         prevTime = currentTime;
         accum += frameDt;
+        statsTimer += frameDt;
 
-        renderData->numDebugVerts = 0;
+        rd->numDebugVerts = 0;
 
         //
         // Handle input
@@ -2248,98 +2265,72 @@ int main()
         // Render the frame
         //
 
-        renderData->circles[0] = {ball.p, ballRadius};
+        rd->circles[0] = {ball.p, ballRadius};
 
         for (int i = 0; i < numFlippers; ++i)
         {
-            renderData->flipperTransforms[i] = flippers[i].transform;
+            rd->flipperTransforms[i] = flippers[i].transform;
         }
 
-        renderData->plungerScaleY = plungerTopY * (1.0f - plungerT);
+        rd->plungerScaleY = plungerTopY * (1.0f - plungerT);
 
-        renderData->numDitchLids = 0;
+        rd->numDitchLids = 0;
         for (int i = 0; i < numDitches; ++i)
         {
             Ditch* ditch = &ditches[i];
             if (ditch->isClosed)
             {
-                renderData->ditchLids[renderData->numDitchLids++] = ditch->lid;
+                rd->ditchLids[rd->numDitchLids++] = ditch->lid;
             }
         }
 
         // Render text
         {
-            int numChars = 0;
-            float x = 580.0f;
-            float y = 740.0f;
-            float lineHeight = 20.0f;
+            rd->numChars = 0;
+            int x = 580;
+            int y = 740;
+            int lineHeight = 20;
 
             // Render high score
             {
                 char str[13];
                 snprintf(str, sizeof str, "HIGH:  %5d", highScore);
-                Vec2 worldOffset{ x, y };
-                for (int i = 0; i < ARRAY_LEN(str) - 1; ++i)
-                {
-                    renderData->charInstances[numChars].worldOffset = worldOffset;
-                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(str[i]);
-                    ++numChars;
-                    worldOffset.x += letterSize;
-                }
+                drawString(rd, str, x, y);
             }
 
             y -= lineHeight;
 
             // Render score
             {
-                char scoreStr[13];
-                snprintf(scoreStr, sizeof scoreStr, "SCORE: %5d", score);
-                Vec2 worldOffset{ x, y };
-                for (int i = 0; i < ARRAY_LEN(scoreStr) - 1; ++i)
-                {
-                    renderData->charInstances[numChars].worldOffset = worldOffset;
-                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(scoreStr[i]);
-                    ++numChars;
-                    worldOffset.x += letterSize;
-                }
+                char str[13];
+                snprintf(str, sizeof str, "SCORE: %5d", score);
+                drawString(rd, str, x, y);
             }
 
             y -= lineHeight;
 
             // Render lives
             {
-                char livesStr[13];
-                snprintf(livesStr, sizeof livesStr, "LIVES: %5d", lives);
-                Vec2 worldOffset{ x, y };
-                for (int i = 0; i < ARRAY_LEN(livesStr) - 1; ++i)
-                {
-                    renderData->charInstances[numChars].worldOffset = worldOffset;
-                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(livesStr[i]);
-                    ++numChars;
-                    worldOffset.x += letterSize;
-                }
+                char str[13];
+                snprintf(str, sizeof str, "LIVES: %5d", lives);
+                drawString(rd, str, x, y);
             }
 
             // Render "Game Over" text
             if (isGameOver)
             {
-                const char* text{ "GAME OVER" };
-                const int len{ static_cast<int>(strlen(text)) };
-                Vec2 worldOffset{ 610.0f, 530.0f };
-                for (int i = 0; i < len; ++i)
-                {
-                    renderData->charInstances[numChars].worldOffset = worldOffset;
-                    renderData->charInstances[numChars].texOffset = getFontTextureOffset(text[i]);
-                    ++numChars;
-                    worldOffset.x += letterSize;
-                }
+                drawString(rd, "GAME OVER", 610, 530);
             }
 
-            renderData->numChars = numChars;
+            {
+                char str[32];
+                snprintf(str, sizeof str, "FRAME %.2f", frameDuraton);
+                drawString(rd, str, 600,10);
+            }
         }
 
 #if 0
-        DefaultVertex* debugVertsPtr = renderData->debugVerts;
+        DefaultVertex* debugVertsPtr = rd->debugVerts;
 
         // Debug render ditch pull radii
         for (int i = 0; i < numDitches; ++i)
@@ -2353,10 +2344,17 @@ int main()
             }
         }
 
-        renderData->numDebugVerts = debugVertsPtr - renderData->debugVerts;
+        rd->numDebugVerts = debugVertsPtr - rd->debugVerts;
 #endif
 
-        render(renderData);
+        render(rd);
+
+        float endFrameTime = (float)glfwGetTime();
+        if (statsTimer > statsTimerMax)
+        {
+            statsTimer = 0.0f;
+            frameDuraton = (endFrameTime - currentTime) * 1000.0f;
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
