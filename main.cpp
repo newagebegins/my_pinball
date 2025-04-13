@@ -1705,7 +1705,9 @@ int main()
     float plungerT = 0.0f;
     constexpr float plungerDownSpeed = 1.0f;
 
+    constexpr float ditchLaunchTimerMax = 1.0f;
     constexpr float ditchCloseTimerMax = 0.5f;
+    float ditchLaunchTimer = 0.0f;
     float ditchCloseTimer = 0.0f;
     int ditchIndexToClose = 0;
 
@@ -1927,6 +1929,20 @@ int main()
             ditchFloorHighlightTimers[i] -= frameDt;
         }
 
+        if (ditchLaunchTimer > 0.0f)
+        {
+            ditchLaunchTimer -= frameDt;
+            if (ditchLaunchTimer <= 0.0f)
+            {
+                // Close the ditch
+                ditchCloseTimer = ditchCloseTimerMax;
+
+                // Launch the ball
+                constexpr float ditchImpulse = 300.0f;
+                ball.v.y += ditchImpulse * getRandomFloat(0.8f, 1.2f);
+            }
+        }
+
         if (ditchCloseTimer > 0.0f)
         {
             ditchCloseTimer -= frameDt;
@@ -1934,21 +1950,6 @@ int main()
             {
                 // Close the ditch
                 ditches[ditchIndexToClose].isClosed = true;
-            }
-        }
-
-        // Launch the ball out of the saving ditches
-        for (int i = 0; i < numDitches; ++i)
-        {
-            bool ballIsInTheDitch = getDistance(ball.p, ditches[i].floor) <= (ballRadius * 1.1f);
-            if (ballIsInTheDitch)
-            {
-                ditchIndexToClose = i;
-                ditchCloseTimer = ditchCloseTimerMax;
-
-                // Launch the ball
-                constexpr float ditchImpulse = 300.0f;
-                ball.v.y += ditchImpulse * getRandomFloat(0.8f, 1.2f);
             }
         }
 
@@ -2100,6 +2101,11 @@ int main()
                         // ball sticks to the ditch floor
                         resolveCollision(&ball, normal, penetration, relativeNormalVelocity, 0.0f);
                         ditchFloorHighlightTimers[i] = highlightTimerMax;
+                        if (ditchLaunchTimer <= 0.0f) // Check to avoid infinitely setting this to the max value
+                        {
+                            ditchLaunchTimer = ditchLaunchTimerMax;
+                        }
+                        ditchIndexToClose = i;
                     }
                 }
             }
