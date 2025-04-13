@@ -1440,6 +1440,7 @@ int main()
 
     constexpr int ditchesCap = 2;
     Ditch ditches[ditchesCap] = {};
+    float ditchFloorHighlightTimers[ditchesCap] = {};
     int numDitches = 0;
 
     float plungerCenterX;
@@ -1921,6 +1922,11 @@ int main()
             buttonHighlightTimers[i] -= frameDt;
         }
 
+        for (int i = 0; i < numDitches; ++i)
+        {
+            ditchFloorHighlightTimers[i] -= frameDt;
+        }
+
         if (ditchCloseTimer > 0.0f)
         {
             ditchCloseTimer -= frameDt;
@@ -2093,6 +2099,7 @@ int main()
                         float relativeNormalVelocity = dot(relativeVelocity, normal);
                         // ball sticks to the ditch floor
                         resolveCollision(&ball, normal, penetration, relativeNormalVelocity, 0.0f);
+                        ditchFloorHighlightTimers[i] = highlightTimerMax;
                     }
                 }
             }
@@ -2276,8 +2283,9 @@ int main()
 
             for (int i = 0; i < numDitches; ++i)
             {
-                *ptr++ = { ditches[i].floor.p0, defCol };
-                *ptr++ = { ditches[i].floor.p1, defCol };
+                Vec3 color = lerp(defCol, highlightCol, ditchFloorHighlightTimers[i]);
+                *ptr++ = { ditches[i].floor.p0, color };
+                *ptr++ = { ditches[i].floor.p1, color };
             }
 
             for (int i = 0; i < numOneWayWalls; ++i)
