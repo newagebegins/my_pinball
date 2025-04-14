@@ -414,6 +414,7 @@ struct FontCharInstance
 {
     Vec2 worldOffset;
     Vec2 texOffset;
+    Vec3 color;
 };
 
 constexpr int numRectVerts = 6;
@@ -427,18 +428,21 @@ static FontShader createFontShader()
 layout (location = 0) in vec2 modelPos;
 layout (location = 1) in vec2 instanceWorldOffset;
 layout (location = 2) in vec2 instanceTexOffset;
+layout (location = 3) in vec3 instanceColor;
 
 uniform mat4 projection;
 uniform float scale;
 
 out vec2 texCoords;
 out vec2 texOffset;
+out vec3 color;
 
 void main()
 {
     gl_Position = projection * vec4(modelPos * scale + instanceWorldOffset, 0.0, 1.0);
     texCoords = modelPos;
     texOffset = instanceTexOffset;
+    color = instanceColor;
 }
 )";
 
@@ -447,6 +451,7 @@ void main()
 
 in vec2 texCoords;
 in vec2 texOffset;
+in vec3 color;
 
 uniform sampler2D fontTexture;
 uniform int fontRows;
@@ -458,7 +463,7 @@ void main()
 {
     vec4 c = texture(fontTexture, vec2((texCoords.x + texOffset.x) / fontCols, (texCoords.y + texOffset.y) / fontRows));
     if (c.a == 0.0) discard;
-    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    fragColor = vec4(color, 1.0);
 }
 )";
 
@@ -1262,13 +1267,13 @@ struct Ditch
     bool isClosed;
 };
 
-static void drawString(RenderData* rd, char* str, int x, int y)
+static void drawString(RenderData* rd, char* str, int x, int y, Vec3 color = defCol)
 {
     size_t len = strlen(str);
     Vec2 worldOffset = { (float)x, (float)y };
     for (size_t i = 0; i < len; ++i)
     {
-        rd->charInstances[rd->numChars++] = { worldOffset, getFontTextureOffset(str[i]) };
+        rd->charInstances[rd->numChars++] = { worldOffset, getFontTextureOffset(str[i]), color };
         worldOffset.x += letterSize;
     }
 }
@@ -1648,6 +1653,8 @@ int main()
 
     constexpr int initialLives = 3;
     int lives = initialLives;
+    float livesHighlightTimer = 0.0f;
+    float livesHighlightTimerMax = 1.0f;
 
     bool isGameOver{ false };
 
@@ -1702,12 +1709,15 @@ int main()
             glGenBuffers(1, &rd->fontInstanceVbo);
             glBindBuffer(GL_ARRAY_BUFFER, rd->fontInstanceVbo);
             glBufferData(GL_ARRAY_BUFFER, charInstanceCap * sizeof(FontCharInstance), nullptr, GL_DYNAMIC_DRAW);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(FontCharInstance), (void*)offsetof(FontCharInstance, worldOffset));
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(FontCharInstance), (void*)offsetof(FontCharInstance, texOffset));
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(FontCharInstance), (void*)offsetof(FontCharInstance, color));
             glEnableVertexAttribArray(1);
             glEnableVertexAttribArray(2);
+            glEnableVertexAttribArray(3);
             glVertexAttribDivisor(1, 1);
             glVertexAttribDivisor(2, 1);
+            glVertexAttribDivisor(3, 1);
         }
     }
 
@@ -1858,6 +1868,15 @@ int main()
             ditchFloorHighlightTimers[i] -= frameDt;
         }
 
+        if (livesHighlightTimer > 0.0f)
+        {
+            livesHighlightTimer -= frameDt;
+            if (livesHighlightTimer < 0.0f)
+            {
+                livesHighlightTimer = 0.0f;
+            }
+        }
+
         if (ditchLaunchTimer > 0.0f)
         {
             ditchLaunchTimer -= frameDt;
@@ -1939,6 +1958,7 @@ int main()
                         ball.v = {};
 
                         --lives;
+                        livesHighlightTimer = livesHighlightTimerMax;
 
                         // Reset ditches
                         for (int i = 0; i < numDitches; ++i)
@@ -2303,7 +2323,8 @@ int main()
             {
                 char str[13];
                 snprintf(str, sizeof str, "LIVES: %5d", lives);
-                drawString(rd, str, x, y);
+                Vec3 color = lerp(defCol, highlightCol, livesHighlightTimer / livesHighlightTimerMax);
+                drawString(rd, str, x, y, color);
             }
 
             // Render "Game Over" text
