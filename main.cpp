@@ -1754,6 +1754,9 @@ int main()
     float statsTimer = 0.0f;
     float frameDuraton = 0.0f;
 
+    bool wasLeftButtonDown = false;
+    bool wasRightButtonDown = false;
+
     while (!glfwWindowShouldClose(window))
     {
         float currentTime{ (float)glfwGetTime() };
@@ -1792,6 +1795,12 @@ int main()
         {
             isRightButtonDown = true;
         }
+
+        bool isLeftButtonPressed = isLeftButtonDown && !wasLeftButtonDown;
+        bool isRightButtonPressed = isRightButtonDown && !wasRightButtonDown;
+
+        wasLeftButtonDown = isLeftButtonDown;
+        wasRightButtonDown = isRightButtonDown;
 
         if (isLeftButtonDown)
         {
@@ -1839,7 +1848,7 @@ int main()
             }
             else
             {
-                if (isLeftButtonDown || isRightButtonDown)
+                if (isLeftButtonPressed || isRightButtonPressed)
                 {
                     isGameOver = false;
                     // Reset the game
