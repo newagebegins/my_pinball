@@ -42,69 +42,69 @@ struct Mat3
     float m[3][3];
 };
 
-Vec2 operator*(Vec2 v, float s)
+static Vec2 operator*(Vec2 v, float s)
 {
     return {s*v.x, s*v.y};
 }
 
-Vec2 operator*(float s, Vec2 v)
+static Vec2 operator*(float s, Vec2 v)
 {
     return {s*v.x, s*v.y};
 }
 
-Vec2 operator/(Vec2 v, float s)
+static Vec2 operator/(Vec2 v, float s)
 {
     return {v.x/s, v.y/s};
 }
 
-Vec2 operator+(Vec2 a, Vec2 b)
+static Vec2 operator+(Vec2 a, Vec2 b)
 {
     return {a.x+b.x, a.y+b.y};
 }
 
-Vec2 operator-(Vec2 a, Vec2 b)
+static Vec2 operator-(Vec2 a, Vec2 b)
 {
     return {a.x-b.x, a.y-b.y};
 }
 
-float getLength(Vec2 v)
+static float getLength(Vec2 v)
 {
     return sqrtf(v.x*v.x + v.y*v.y);
 }
 
-Vec2 normalize(Vec2 v)
+static Vec2 normalize(Vec2 v)
 {
     return v/getLength(v);
 }
 
-Vec2 operator-(Vec2 v)
+static Vec2 operator-(Vec2 v)
 {
     return {-v.x, -v.y};
 }
 
-Vec2& operator+=(Vec2& a, Vec2 b)
+static Vec2& operator+=(Vec2& a, Vec2 b)
 {
     a.x += b.x;
     a.y += b.y;
     return a;
 }
 
-float dot(Vec2 a, Vec2 b)
+static float dot(Vec2 a, Vec2 b)
 {
     return a.x*b.x + a.y*b.y;
 }
 
-Vec2 perp(Vec2 v)
+static Vec2 perp(Vec2 v)
 {
     return { -v.y, v.x };
 }
 
-float perpDot(Vec2 a, Vec2 b)
+static float perpDot(Vec2 a, Vec2 b)
 {
     return dot(perp(a), b);
 }
 
-float clamp(float x, float xMin, float xMax)
+static float clamp(float x, float xMin, float xMax)
 {
     float res;
     if (x < xMin)
@@ -122,12 +122,12 @@ float clamp(float x, float xMin, float xMax)
     return res;
 }
 
-float getDistance(Vec2 a, Vec2 b)
+static float getDistance(Vec2 a, Vec2 b)
 {
     return getLength(a - b);
 }
 
-constexpr Mat3 makeI3()
+static constexpr Mat3 makeI3()
 {
     Mat3 m{};
     m.m[0][0] = 1.0f;
@@ -138,22 +138,22 @@ constexpr Mat3 makeI3()
 
 constexpr Mat3 I3{ makeI3() };
 
-Vec3 operator+(Vec3 a, Vec3 b)
+static Vec3 operator+(Vec3 a, Vec3 b)
 {
     return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
-Vec3 operator*(float t, Vec3 v)
+static Vec3 operator*(float t, Vec3 v)
 {
     return { v.x * t, v.y * t, v.z * t };
 }
 
-Vec3 operator*(Vec3 v, float t)
+static Vec3 operator*(Vec3 v, float t)
 {
     return { v.x * t, v.y * t, v.z * t };
 }
 
-Vec3 operator*(const Mat3& m, Vec3 v)
+static Vec3 operator*(const Mat3& m, Vec3 v)
 {
     return {
         m.m[0][0]*v.x + m.m[1][0]*v.y + m.m[2][0]*v.z,
@@ -167,7 +167,7 @@ struct Mat4
     float m[4][4];
 };
 
-Vec2 makeVec2(Vec3 v)
+static Vec2 makeVec2(Vec3 v)
 {
     return {v.x, v.y};
 }
@@ -177,7 +177,7 @@ struct Mat2
     float m[2][2];
 };
 
-Mat2 makeRotationMat2(float angle)
+static Mat2 makeRotationMat2(float angle)
 {
     Mat2 m;
     float c = cosf(angle);
@@ -187,7 +187,7 @@ Mat2 makeRotationMat2(float angle)
     return m;
 }
 
-Vec2 operator*(Mat2 m, Vec2 v)
+static Vec2 operator*(Mat2 m, Vec2 v)
 {
     return {
         m.m[0][0] * v.x + m.m[1][0] * v.y,
@@ -195,28 +195,28 @@ Vec2 operator*(Mat2 m, Vec2 v)
     };
 }
 
-Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
+static Vec2 makeVec2FromAngle(float angle, float len = 1.0f)
 {
     return { cosf(angle) * len, sinf(angle) * len };
 }
 
 // Reflect around Y axis
-Vec2 reflect(Vec2 v)
+static Vec2 reflect(Vec2 v)
 {
     return { -v.x, v.y };
 }
 
-float lerp(float x, float y, float t)
+static float lerp(float x, float y, float t)
 {
     return (1.0f - t) * x + t * y;
 }
 
-Vec3 lerp(Vec3 x, Vec3 y, float t)
+static Vec3 lerp(Vec3 x, Vec3 y, float t)
 {
     return (1.0f - t) * x + t * y;
 }
 
-float getAngle(Vec2 v)
+static float getAngle(Vec2 v)
 {
     float a = atan2f(v.y, v.x);
     if (fabsf(a) < 0.000001f)
@@ -231,7 +231,7 @@ float getAngle(Vec2 v)
 }
 
 // Reflect around Y axis
-float reflectAngle(float angle)
+static float reflectAngle(float angle)
 {
     return getAngle(reflect(makeVec2FromAngle(angle)));
 }
@@ -254,7 +254,7 @@ struct LineSegment
     Vec2 p1;
 };
 
-float getDistance(Vec2 v, LineSegment s)
+static float getDistance(Vec2 v, LineSegment s)
 {
     Vec2 L = s.p1 - s.p0;
     float segmentLength = getLength(L);
@@ -267,7 +267,7 @@ float getDistance(Vec2 v, LineSegment s)
 constexpr int numFlippers = 2;
 constexpr int debugVertsCap = 128;
 
-unsigned int loadTexture(const char* filename)
+static unsigned int loadTexture(const char* filename)
 {
     unsigned int texture{};
 
@@ -365,7 +365,7 @@ struct MainShader
     GLint projectionLoc;
 };
 
-MainShader createMainShader()
+static MainShader createMainShader()
 {
     static const char* const vertexCode = R"(
 #version 410
@@ -434,7 +434,7 @@ struct FontCharInstance
 constexpr int numRectVerts = 6;
 constexpr int charInstanceCap = 128;
 
-FontShader createFontShader()
+static FontShader createFontShader()
 {
     static const char* const vCode = R"(
 #version 410
@@ -500,7 +500,7 @@ constexpr float letterSize = 16.0f;
 constexpr int fontRows = 16;
 constexpr int fontCols = 16;
 
-Vec2 getFontTextureOffset(char c)
+static Vec2 getFontTextureOffset(char c)
 {
     int k{ (c - ' ') };
     int x{ k % fontCols };
@@ -572,7 +572,7 @@ struct Arc
 
 constexpr float maxAngularVelocity{ twoPi * 4.0f };
 
-constexpr float radians(float deg)
+static constexpr float radians(float deg)
 {
     return pi * deg / 180.0f;
 }
@@ -595,7 +595,7 @@ struct Flipper
     float angularVelocity;
 };
 
-void updateTransform(Flipper* f)
+static void updateTransform(Flipper* f)
 {
     float c = cosf(f->orientation);
     float s = sinf(f->orientation);
@@ -614,7 +614,7 @@ void updateTransform(Flipper* f)
     f->transform.m[2][2] = 1.0f;
 }
 
-Flipper makeFlipper(Vec2 position, bool isLeft)
+static Flipper makeFlipper(Vec2 position, bool isLeft)
 {
     Flipper f;
     f.position = position;
@@ -671,14 +671,14 @@ constexpr Vec3 auxCol{ 0.5f, 0.5f, 0.5f };
 constexpr Vec3 oneWayWallsColor{ 0.5f, 0.5f, 0.8f };
 constexpr Vec3 highlightCol{ 0.8f, 0.0f, 0.3f };
 
-LineSegment* addLineSegmentMirrored(LineSegment* ptr, Vec2 p0, Vec2 p1)
+static LineSegment* addLineSegmentMirrored(LineSegment* ptr, Vec2 p0, Vec2 p1)
 {
     *ptr++ = {p0, p1};
     *ptr++ = {{-p0.x, p0.y}, {-p1.x, p1.y}};
     return ptr;
 }
 
-Vec2 findIntersection(Line L1, Line L2)
+static Vec2 findIntersection(Line L1, Line L2)
 {
     const float p1x{ L1.p.x };
     const float p1y{ L1.p.y };
@@ -697,7 +697,7 @@ Vec2 findIntersection(Line L1, Line L2)
     return L1.p + L1.d * t1;
 }
 
-DefaultVertex* addLine(DefaultVertex* ptr, const Line& l, Vec3 color = auxCol)
+static DefaultVertex* addLine(DefaultVertex* ptr, const Line& l, Vec3 color = auxCol)
 {
     constexpr float len{ 100.0f };
     *ptr++ = {l.p + l.d*len, color};
@@ -705,7 +705,7 @@ DefaultVertex* addLine(DefaultVertex* ptr, const Line& l, Vec3 color = auxCol)
     return ptr;
 }
 
-DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
+static DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
 {
     constexpr float len{ 100.0f };
     *ptr++ = {r.p, color};
@@ -713,7 +713,7 @@ DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
     return ptr;
 }
 
-DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 color)
+static DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 color)
 {
     assert(numPts > 1);
     for (int i = 0; i < numPts-1; ++i)
@@ -724,7 +724,7 @@ DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 colo
     return ptr;
 }
 
-LineSegment* addLineStrip(LineSegment* ptr, Vec2* pts, int numPts, float xScale = 1.0f)
+static LineSegment* addLineStrip(LineSegment* ptr, Vec2* pts, int numPts, float xScale = 1.0f)
 {
     assert(numPts > 1);
     for (int i = 0; i < numPts-1; ++i)
@@ -736,14 +736,14 @@ LineSegment* addLineStrip(LineSegment* ptr, Vec2* pts, int numPts, float xScale 
     return ptr;
 }
 
-LineSegment* addLineStripMirrored(LineSegment* ptr, Vec2* pts, int numPts)
+static LineSegment* addLineStripMirrored(LineSegment* ptr, Vec2* pts, int numPts)
 {
     ptr = addLineStrip(ptr, pts, numPts, 1.0f);
     ptr = addLineStrip(ptr, pts, numPts, -1.0f);
     return ptr;
 }
 
-DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r, Vec3 color = defCol)
+static DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r, Vec3 color = defCol)
 {
     constexpr int numVerts{ 32 };
 
@@ -775,7 +775,7 @@ DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r, Vec3 color = 
 // d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
 // r - radius of the circle
 // returns the position of the circle
-Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
+static Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
 {
     Vec2 d1p = perp(d1);
     Vec2 d2p = perp(d2);
@@ -785,7 +785,7 @@ Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
 }
 
 // Circular through 2 points
-Arc makeArc(Vec2 pStart, Vec2 pEnd, float r)
+static Arc makeArc(Vec2 pStart, Vec2 pEnd, float r)
 {
     Vec2 pMid{ (pStart + pEnd) / 2.0f };
     Vec2 L{ -normalize(perp(pStart - pEnd)) };
@@ -808,7 +808,7 @@ struct ArcPoints
 // d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
 // r - radius of the circle
 // returns the position of the circle
-ArcPoints findArcBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
+static ArcPoints findArcBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
 {
     Vec2 d1p = perp(d1);
     Vec2 d2p = perp(d2);
@@ -818,7 +818,7 @@ ArcPoints findArcBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
     return {Q, R};
 }
 
-DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, Vec3 color = defCol)
+static DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32, Vec3 color = defCol)
 {
     assert(0.0f <= arc.start && arc.start < twoPi);
     assert(0.0f <= arc.end && arc.end < twoPi);
@@ -847,7 +847,7 @@ DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSteps = 32
     return ptr;
 }
 
-Arc reflectArc(const Arc& arc)
+static Arc reflectArc(const Arc& arc)
 {
     Arc result;
     result.p = reflect(arc.p);
@@ -857,14 +857,14 @@ Arc reflectArc(const Arc& arc)
     return result;
 }
 
-DefaultVertex* addSlingshotCircle(DefaultVertex* ptr, Vec2 P, Vec2 d1, Vec2 d2, float r)
+static DefaultVertex* addSlingshotCircle(DefaultVertex* ptr, Vec2 P, Vec2 d1, Vec2 d2, float r)
 {
     Vec2 O = findCircleBetweenLines(P, d1, d2, r);
     return addCircleLines(ptr, O, r);
 }
 
 // Circle through 2 points with the given radius
-Circle makeCircle(Vec2 p1, Vec2 p2, float r)
+static Circle makeCircle(Vec2 p1, Vec2 p2, float r)
 {
     Vec2 p3{ (p1 + p2) / 2.0f };
     Vec2 L{ -normalize(perp(p2 - p1)) };
@@ -874,17 +874,17 @@ Circle makeCircle(Vec2 p1, Vec2 p2, float r)
     return {c, r};
 }
 
-Vec2 getArcStart(const Arc& arc)
+static Vec2 getArcStart(const Arc& arc)
 {
     return arc.p + Vec2{cosf(arc.start), sinf(arc.start)} * arc.r;
 }
 
-Vec2 getArcEnd(const Arc& arc)
+static Vec2 getArcEnd(const Arc& arc)
 {
     return arc.p + Vec2{cosf(arc.end), sinf(arc.end)} * arc.r;
 }
 
-Vec2 findIntersection(const Ray& r, const Arc& a)
+static Vec2 findIntersection(const Ray& r, const Arc& a)
 {
     float n = r.p.x - a.p.x;
     float m = r.p.y - a.p.y;
@@ -898,7 +898,7 @@ Vec2 findIntersection(const Ray& r, const Arc& a)
 constexpr float capsuleHalfHeight = 0.7f;
 constexpr float capsuleRadius = 0.2f;
 
-DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
+static DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 {
     float hw=capsuleRadius;
     float hh=capsuleHalfHeight;
@@ -918,7 +918,7 @@ DefaultVertex* addCapsuleLines(DefaultVertex* ptr, Vec2 c)
 
 constexpr float popBumperRadius = 2.75f;
 
-DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c, Vec3 color)
+static DefaultVertex* addPopBumperLines(DefaultVertex* ptr, Vec2 c, Vec3 color)
 {
     float rb{popBumperRadius};
     float gap{0.45f};
@@ -937,7 +937,7 @@ struct Button
     Vec2 n; // normal
 };
 
-Button* addButton(Button* ptr, Vec2 p0, Vec2 p1, float t)
+static Button* addButton(Button* ptr, Vec2 p0, Vec2 p1, float t)
 {
     Vec2 D{p1-p0};
     Vec2 c{ p0 + D*t };
@@ -947,7 +947,7 @@ Button* addButton(Button* ptr, Vec2 p0, Vec2 p1, float t)
     return ptr;
 }
 
-void getButtonPoints(Button b, Vec2 pts[4])
+static void getButtonPoints(Button b, Vec2 pts[4])
 {
     Vec2 d = -perp(b.n);
     Vec2 q0 = b.p - d * buttonHalfWidth;
@@ -960,7 +960,7 @@ void getButtonPoints(Button b, Vec2 pts[4])
     pts[3] = q3;
 }
 
-DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b, Vec3 color)
+static DefaultVertex* addButtonLines(DefaultVertex* ptr, Button b, Vec3 color)
 {
     Vec2 pts[4];
     getButtonPoints(b, pts);
@@ -1145,7 +1145,7 @@ static void render(RenderData* rd)
     glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, rd->numChars);
 }
 
-void drawDebugLine(Vec2 p0, Vec2 p1)
+static void drawDebugLine(Vec2 p0, Vec2 p1)
 {
     auto& rd = g_renderData;
     assert(rd.numDebugVerts+1 < debugVertsCap);
@@ -1228,7 +1228,7 @@ static void windowRefreshCallback(GLFWwindow* window)
     glfwSwapBuffers(window);
 }
 
-Mat4 myOrtho(float l, float r, float b, float t, float n, float f)
+static Mat4 myOrtho(float l, float r, float b, float t, float n, float f)
 {
     Mat4 m{};
     m.m[0][0] = 2.0f/(r-l);
@@ -1241,12 +1241,12 @@ Mat4 myOrtho(float l, float r, float b, float t, float n, float f)
     return m;
 }
 
-float getRandomFloat(float min, float max)
+static float getRandomFloat(float min, float max)
 {
     return min + (max - min) * rand() / RAND_MAX;
 }
 
-void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float bounciness = 0.5f)
+static void resolveCollision(Ball* ball, Vec2 normal, float penetration, float relativeNormalVelocity, float bounciness = 0.5f)
 {
     if (relativeNormalVelocity <= 0.0f)
     {
@@ -1281,7 +1281,7 @@ struct Collision
     float penetration;
 };
 
-Collision checkIntersection(const Circle& circ, const Arc& arc)
+static Collision checkIntersection(const Circle& circ, const Arc& arc)
 {
     Vec2 v{ normalize(circ.p - arc.p) * arc.r };
 
@@ -1332,7 +1332,7 @@ struct Ditch
     bool isClosed;
 };
 
-void drawString(RenderData* rd, char* str, int x, int y)
+static void drawString(RenderData* rd, char* str, int x, int y)
 {
     size_t len = strlen(str);
     Vec2 worldOffset = { (float)x, (float)y };
