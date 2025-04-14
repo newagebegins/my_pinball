@@ -2325,34 +2325,47 @@ int main()
         // Render text
         {
             rd->numChars = 0;
+
             int x = 580;
-            int y = 740;
             int lineHeight = 20;
-
-            // Render high score
+            
             {
-                char str[13];
-                snprintf(str, sizeof str, "HIGH:  %5d", highScore);
-                drawString(rd, str, x, y);
+                int y = 740;
+
+                // Render high score
+                {
+                    char str[13];
+                    snprintf(str, sizeof str, "HIGH:  %5d", highScore);
+                    drawString(rd, str, x, y);
+                }
+
+                y -= lineHeight;
+
+                // Render score
+                {
+                    char str[13];
+                    snprintf(str, sizeof str, "SCORE: %5d", score);
+                    drawString(rd, str, x, y);
+                }
+
+                y -= lineHeight;
+
+                // Render lives
+                {
+                    char str[13];
+                    snprintf(str, sizeof str, "LIVES: %5d", lives);
+                    Vec3 color = lerp(defCol, highlightCol, livesHighlightTimer / livesHighlightTimerMax);
+                    drawString(rd, str, x, y, color);
+                }
             }
 
-            y -= lineHeight;
-
-            // Render score
             {
-                char str[13];
-                snprintf(str, sizeof str, "SCORE: %5d", score);
-                drawString(rd, str, x, y);
-            }
-
-            y -= lineHeight;
-
-            // Render lives
-            {
-                char str[13];
-                snprintf(str, sizeof str, "LIVES: %5d", lives);
-                Vec3 color = lerp(defCol, highlightCol, livesHighlightTimer / livesHighlightTimerMax);
-                drawString(rd, str, x, y, color);
+                int y = 100;
+                drawString(rd, "CONTROLS:", x, y);
+                y -= lineHeight;
+                drawString(rd, "MOUSE BUTTONS", x, y);
+                y -= lineHeight;
+                drawString(rd, "Q,P", x, y);
             }
 
             // Render "Game Over" text
@@ -2364,8 +2377,8 @@ int main()
 
             {
                 char str[32];
-                snprintf(str, sizeof str, "FRAME %.2f", frameDuraton);
-                drawString(rd, str, 600,10);
+                snprintf(str, sizeof str, "FRAME %.2fMS", frameDuraton);
+                drawString(rd, str, x, 10, auxCol);
             }
         }
 
