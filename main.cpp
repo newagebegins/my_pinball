@@ -174,7 +174,7 @@ struct Mat2
 
 static Mat2 makeRotationMat2(float angle)
 {
-    Mat2 m;
+    Mat2 m = {};
     float c = cosf(angle);
     float s = sinf(angle);
     m.m[0][0] = c;  m.m[1][0] = -s;
@@ -384,7 +384,7 @@ void main()
 }
 )";
 
-    MainShader ms;
+    MainShader ms = {};
 
     ms.program = createShaderProgram(vertexCode, fragmentCode);
 
@@ -462,7 +462,7 @@ void main()
 }
 )";
 
-    FontShader fs;
+    FontShader fs = {};
 
     fs.program = createShaderProgram(vCode, fCode);
 
@@ -601,7 +601,7 @@ static void updateTransform(Flipper* f)
 
 static Flipper makeFlipper(Vec2 position, bool isLeft)
 {
-    Flipper f;
+    Flipper f = {};
     f.position = position;
     f.minAngle = isLeft ? leftFlipperMinAngle : reflectAngle(leftFlipperMaxAngle);
     f.maxAngle = isLeft ? leftFlipperMaxAngle : reflectAngle(leftFlipperMinAngle);
@@ -628,7 +628,7 @@ struct Line
     Line(Vec2 P, float a) : p{P}, d{ cosf(a), sinf(a) }
     {}
 
-    Line parallel(float offset)
+    Line parallel(float offset) const
     {
         Vec2 n{ perp(d) };
         return {{p + n*offset}, d};
@@ -804,7 +804,7 @@ static DefaultVertex* addArcLines(DefaultVertex* ptr, const Arc& arc, int numSte
 
 static Arc reflectArc(const Arc& arc)
 {
-    Arc result;
+    Arc result = {};
     result.p = reflect(arc.p);
     result.r = arc.r;
     result.start = reflectAngle(arc.end);
@@ -1011,7 +1011,7 @@ static void render(RenderData* rd)
     {
         Circle c = rd->circles[i];
 
-        float m[9];
+        float m[9] = {};
         m[0] = c.r;   m[3] = 0.0f;  m[6] = c.p.x;
         m[1] = 0.0f;  m[4] = c.r;   m[7] = c.p.y;
         m[2] = 0.0f;  m[5] = 0.0f;  m[8] = 1.0f;
@@ -1040,7 +1040,7 @@ static void render(RenderData* rd)
 
     // Draw ditch lids
     {
-        DefaultVertex verts[ditchLidsCap * 2];
+        DefaultVertex verts[ditchLidsCap * 2] = {};
         for (int i = 0; i < rd->numDitchLids; ++i)
         {
             verts[i * 2] = { rd->ditchLids[i].p0, defCol };
@@ -1056,7 +1056,7 @@ static void render(RenderData* rd)
 
     // Draw the plunger
     {
-        float m[9];
+        float m[9] = {};
         m[0] = 1.0f;  m[3] = 0.0f;              m[6] = rd->plungerCenterX;
         m[1] = 0.0f;  m[4] = rd->plungerScaleY;  m[7] = 0.0f;
         m[2] = 0.0f;  m[5] = 0.0f;              m[8] = 1.0f;
@@ -1328,21 +1328,21 @@ int main()
     RenderData* rd = &g_renderData;
 
     constexpr int basicWallsCap = 70;
-    LineSegment basicWalls[basicWallsCap];
+    LineSegment basicWalls[basicWallsCap] = {};
     int numBasicWalls;
 
     constexpr int slingshotWallsCap = 2;
-    LineSegment slingshotWalls[slingshotWallsCap];
+    LineSegment slingshotWalls[slingshotWallsCap] = {};
     float slingshotWallHighlightTimers[slingshotWallsCap] = {};
     int numSlingshotWalls;
 
     constexpr int oneWayWallsCap = 2;
-    LineSegment oneWayWalls[oneWayWallsCap];
+    LineSegment oneWayWalls[oneWayWallsCap] = {};
     int numOneWayWalls;
 
     constexpr int arcsCap = 16;
-    Arc arcs[arcsCap];
-    int arcSteps[arcsCap];
+    Arc arcs[arcsCap] = {};
+    int arcSteps[arcsCap] = {};
     int numArcs = 0;
 
 #define ADD_ARC(arc, steps)    \
@@ -1355,16 +1355,16 @@ int main()
     ADD_ARC(reflectArc(arc), steps);
 
     constexpr int capsulesCap = 2;
-    Vec2 capsules[capsulesCap];
+    Vec2 capsules[capsulesCap] = {};
     int numCapsules;
 
     constexpr int popBumpersCap = 3;
-    Vec2 popBumpers[popBumpersCap];
+    Vec2 popBumpers[popBumpersCap] = {};
     float popBumperHighlightTimers[popBumpersCap] = {};
     int numPopBumpers;
 
     constexpr int buttonsCap = 16;
-    Button buttons[buttonsCap];
+    Button buttons[buttonsCap] = {};
     float buttonHighlightTimers[buttonsCap] = {};
     int numButtons;
 
@@ -1615,9 +1615,8 @@ int main()
 
     Vec2 initialBallPosition = { plungerCenterX, plungerTopY + 3.0f };
 
-    Ball ball;
+    Ball ball = {};
     ball.p = initialBallPosition;
-    ball.v = {};
 
 #if 0
     // place ball above the left ditch for testing
@@ -1628,7 +1627,7 @@ int main()
     ball.p = (ditches[1].p0 + ditches[1].p1) / 2.0f + Vec2{ 0.0f, 5.0f };
 #endif
 
-    Flipper flippers[numFlippers];
+    Flipper flippers[numFlippers] = {};
     flippers[0] = makeFlipper(Vec2{ -flipperX, flipperY }, true);
     flippers[1] = makeFlipper(Vec2{  flipperX, flipperY }, false);
 
