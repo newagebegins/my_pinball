@@ -1654,9 +1654,11 @@ int main()
     constexpr int initialLives = 3;
     int lives = initialLives;
     float livesHighlightTimer = 0.0f;
-    float livesHighlightTimerMax = 1.0f;
+    constexpr float livesHighlightTimerMax = 1.0f;
 
-    bool isGameOver{ false };
+    bool isGameOver = false;
+    constexpr float gameOverTimerMax = 1.0f;
+    float gameOverTimer = 0.0f;
 
     // Initialize render data
     {
@@ -1831,19 +1833,26 @@ int main()
 
         if (isGameOver)
         {
-            if (isLeftButtonDown || isRightButtonDown)
+            if (gameOverTimer > 0.0f)
             {
-                isGameOver = false;
-                // Reset the game
-                lives = initialLives;
-                score = 0;
-                // Reset ball
-                ball.p = initialBallPosition;
-                ball.v = {};
-                // Reset ditches
-                for (int i = 0; i < numDitches; ++i)
+                gameOverTimer -= frameDt;
+            }
+            else
+            {
+                if (isLeftButtonDown || isRightButtonDown)
                 {
-                    ditches[i].isClosed = false;
+                    isGameOver = false;
+                    // Reset the game
+                    lives = initialLives;
+                    score = 0;
+                    // Reset ball
+                    ball.p = initialBallPosition;
+                    ball.v = {};
+                    // Reset ditches
+                    for (int i = 0; i < numDitches; ++i)
+                    {
+                        ditches[i].isClosed = false;
+                    }
                 }
             }
         }
@@ -1912,6 +1921,7 @@ int main()
             accum -= simDt;
 
             // Update ball
+            if (!isGameOver)
             {
                 Vec2 ballTotalForce = {};
 
@@ -1945,11 +1955,12 @@ int main()
                 ball.p += ball.v * simDt;
 
                 // If the ball has fallen off the table
-                if (ball.p.y + ballRadius < 0.0f)
+                if (ball.p.y + ballRadius < -10.0f * ballRadius)
                 {
                     if (lives == 0)
                     {
                         isGameOver = true;
+                        gameOverTimer = gameOverTimerMax;
                     }
                     else
                     {
@@ -2330,7 +2341,8 @@ int main()
             // Render "Game Over" text
             if (isGameOver)
             {
-                drawString(rd, "GAME OVER", 610, 530);
+                Vec3 color = lerp(defCol, highlightCol, gameOverTimer / gameOverTimerMax);
+                drawString(rd, "GAME OVER", 610, 530, color);
             }
 
             {
