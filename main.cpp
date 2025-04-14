@@ -148,11 +148,6 @@ static Vec3 operator*(float t, Vec3 v)
     return { v.x * t, v.y * t, v.z * t };
 }
 
-static Vec3 operator*(Vec3 v, float t)
-{
-    return { v.x * t, v.y * t, v.z * t };
-}
-
 static Vec3 operator*(const Mat3& m, Vec3 v)
 {
     return {
@@ -253,16 +248,6 @@ struct LineSegment
     Vec2 p0;
     Vec2 p1;
 };
-
-static float getDistance(Vec2 v, LineSegment s)
-{
-    Vec2 L = s.p1 - s.p0;
-    float segmentLength = getLength(L);
-    Vec2 dir = L / segmentLength;
-    float t = clamp(dot(v - s.p0, dir), 0.0f, segmentLength);
-    Vec2 closestPoint = s.p0 + t * dir;
-    return getDistance(v, closestPoint);
-}
 
 constexpr int numFlippers = 2;
 constexpr int debugVertsCap = 128;
@@ -697,22 +682,6 @@ static Vec2 findIntersection(Line L1, Line L2)
     return L1.p + L1.d * t1;
 }
 
-static DefaultVertex* addLine(DefaultVertex* ptr, const Line& l, Vec3 color = auxCol)
-{
-    constexpr float len{ 100.0f };
-    *ptr++ = {l.p + l.d*len, color};
-    *ptr++ = {l.p - l.d*len, color};
-    return ptr;
-}
-
-static DefaultVertex* addRay(DefaultVertex* ptr, const Ray& r, Vec3 color = auxCol)
-{
-    constexpr float len{ 100.0f };
-    *ptr++ = {r.p, color};
-    *ptr++ = {r.p + r.d*len, color};
-    return ptr;
-}
-
 static DefaultVertex* addLineStrip(DefaultVertex* ptr, Vec2* pts, int numPts, Vec3 color)
 {
     assert(numPts > 1);
@@ -768,20 +737,6 @@ static DefaultVertex* addCircleLines(DefaultVertex* ptr, Vec2 p, float r, Vec3 c
 
     *ptr++ = v0;
     return ptr;
-}
-
-// P - intersection of two lines
-// d1 - direction of the line to the left of the circle (from intersection towards circle, unit)
-// d2 - direction of the line to the right of the circle (from intersection towards circle, unit)
-// r - radius of the circle
-// returns the position of the circle
-static Vec2 findCircleBetweenLines(Vec2 P, Vec2 d1, Vec2 d2, float r)
-{
-    Vec2 d1p = perp(d1);
-    Vec2 d2p = perp(d2);
-    float t = r * getLength(d1p + d2p) / getLength(d1 - d2);
-    Vec2 O = P + d1*t - d1p*r;
-    return O;
 }
 
 // Circular through 2 points
@@ -855,23 +810,6 @@ static Arc reflectArc(const Arc& arc)
     result.start = reflectAngle(arc.end);
     result.end = reflectAngle(arc.start);
     return result;
-}
-
-static DefaultVertex* addSlingshotCircle(DefaultVertex* ptr, Vec2 P, Vec2 d1, Vec2 d2, float r)
-{
-    Vec2 O = findCircleBetweenLines(P, d1, d2, r);
-    return addCircleLines(ptr, O, r);
-}
-
-// Circle through 2 points with the given radius
-static Circle makeCircle(Vec2 p1, Vec2 p2, float r)
-{
-    Vec2 p3{ (p1 + p2) / 2.0f };
-    Vec2 L{ -normalize(perp(p2 - p1)) };
-    float m{ getLength(p3-p1) };
-    float l{ sqrtf(r*r - m*m) };
-    Vec2 c{p3 + L*l};
-    return {c, r};
 }
 
 static Vec2 getArcStart(const Arc& arc)
@@ -1143,14 +1081,6 @@ static void render(RenderData* rd)
     glBufferSubData(GL_ARRAY_BUFFER, 0, rd->numChars * sizeof(rd->charInstances[0]), rd->charInstances);
     glBindTexture(GL_TEXTURE_2D, rd->fontTexture);
     glDrawArraysInstanced(GL_TRIANGLES, 0, numRectVerts, rd->numChars);
-}
-
-static void drawDebugLine(Vec2 p0, Vec2 p1)
-{
-    auto& rd = g_renderData;
-    assert(rd.numDebugVerts+1 < debugVertsCap);
-    rd.debugVerts[rd.numDebugVerts++] = { p0, highlightCol };
-    rd.debugVerts[rd.numDebugVerts++] = { p1, highlightCol };
 }
 
 static void APIENTRY glDebugOutput(
