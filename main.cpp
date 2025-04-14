@@ -1378,6 +1378,8 @@ int main()
     float ditchFloorHighlightTimers[ditchesCap] = {};
     int numDitches = 0;
 
+    float plungerLeftX;
+    float plungerRightX;
     float plungerCenterX;
     float plungerTopY;
 
@@ -1501,7 +1503,9 @@ int main()
         Vec2 p30 = findIntersection(ll1, l20);
         Vec2 p31 = findIntersection(ll1, l21);
         *basicWallsPtr++ = {p30, p31};
-        plungerCenterX = ((p30 + p31) / 2.0f).x;
+        plungerLeftX = p30.x;
+        plungerRightX = p31.x;
+        plungerCenterX = (plungerLeftX + plungerRightX) / 2.0f;
         plungerTopY = p30.y;
 
         float arc30r = 20.87f;
@@ -1796,8 +1800,11 @@ int main()
             isRightButtonDown = true;
         }
 
+        bool isAnyButtonDown = isLeftButtonDown || isRightButtonDown;
+
         bool isLeftButtonPressed = isLeftButtonDown && !wasLeftButtonDown;
         bool isRightButtonPressed = isRightButtonDown && !wasRightButtonDown;
+        bool isAnyButtonPressed = isLeftButtonPressed || isRightButtonPressed;
 
         wasLeftButtonDown = isLeftButtonDown;
         wasRightButtonDown = isRightButtonDown;
@@ -1820,7 +1827,8 @@ int main()
             flippers[1].angularVelocity = maxAngularVelocity;
         }
 
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        bool isBallNearPlunger = plungerLeftX < ball.p.x && ball.p.x < plungerRightX;
+        if (isBallNearPlunger && isAnyButtonDown)
         {
             plungerT += plungerDownSpeed * frameDt;
             if (plungerT > 1.0f)
@@ -1848,7 +1856,7 @@ int main()
             }
             else
             {
-                if (isLeftButtonPressed || isRightButtonPressed)
+                if (isAnyButtonPressed)
                 {
                     isGameOver = false;
                     // Reset the game
